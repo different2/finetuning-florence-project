@@ -1,4 +1,4 @@
-/* Version 3.0 */
+/* Version 3.1 */
 body {
     font-family: sans-serif;
 }
@@ -23,6 +23,8 @@ h1 {
     border: 1px solid #ccc;
     margin-right: 20px;
     overflow-y: auto;
+    position: relative; /* Ensure z-index is respected */
+    z-index: 10;      /* Place sidebar above other elements */
 }
 
 .sidebar > div {
