@@ -1,4 +1,4 @@
-/* Version 2.8 */
+/* Version 3.2 */
 const imageLoader = document.getElementById('imageLoader');
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
@@ -29,20 +29,15 @@ let currentBox = null;
 const CLICK_DRAG_THRESHOLD = 5;
 
 imageLoader.addEventListener('change', (e) => {
-    if (!e.target.files || e.target.files.length === 0) {
-        return; // No file selected
-    }
+    if (!e.target.files || e.target.files.length === 0) return;
     const reader = new FileReader();
     reader.onload = (event) => {
         const img = new Image();
         img.onload = () => {
-            // Only clear data if it's a new image
             if (!currentImage || currentImage.src !== img.src) {
                 canvas.width = img.width;
                 canvas.height = img.height;
                 currentImage = img;
-
-                // Clear all data for the new image
                 annotations = [];
                 selectedAnnotation = null;
                 highlightedAnnotation = null;
@@ -50,17 +45,17 @@ imageLoader.addEventListener('change', (e) => {
                 frameThemeInput.value = '';
                 backgroundThemeInput.value = '';
                 isMatchSelect.value = 'true';
-                directoryHandle = null; // Reset directory for new image session
+                directoryHandle = null;
             }
-            ctx.drawImage(img, 0, 0); // Always draw the image
-            redraw(); // Redraw annotations over it
+            ctx.drawImage(img, 0, 0);
+            redraw();
         }
         img.src = event.target.result;
     }
     reader.readAsDataURL(e.target.files[0]);
 });
 
-colorPicker.addEventListener('input', redraw);
+colorPicker.addEventListener('input', redrawCanvas);
 
 detectButton.addEventListener('click', async () => {
     if (!currentImage) {
@@ -92,10 +87,8 @@ async function fallbackSave(imageFilename, jsonFilename) {
     tempCtx.drawImage(currentImage, 0, 0);
     const imageDataUrl = tempCanvas.toDataURL('image/png');
     const imageBase64 = imageDataUrl.split(',')[1];
-
     const categories = createCategories();
     const cocoAnnotations = createCocoAnnotations(categories.categoryMap);
-
     const cocoData = {
         info: { description: 'Annotation created with custom tool', version: '1.0', year: new Date().getFullYear(), date_created: new Date().toISOString() },
         images: [{ id: 1, width: canvas.width, height: canvas.height, file_name: imageFilename }],
@@ -107,7 +100,6 @@ async function fallbackSave(imageFilename, jsonFilename) {
         is_match: isMatchSelect.value,
         image_data: imageBase64
     };
-
     const jsonBlob = new Blob([JSON.stringify(cocoData, null, 2)], { type: 'application/json' });
     const jsonUrl = URL.createObjectURL(jsonBlob);
     const jsonLink = document.createElement('a');
@@ -144,27 +136,23 @@ saveButton.addEventListener('click', async () => {
         alert('Please load an image first.');
         return;
     }
-
     const frameTheme = frameThemeInput.value.replace(/\s+/g, '_') || 'custom';
     const backgroundTheme = backgroundThemeInput.value.replace(/\s+/g, '_') || 'custom';
     const timestamp = new Date().getTime();
     const baseFilename = `${frameTheme}_${backgroundTheme}_${timestamp}`;
     const imageFilename = `${baseFilename}.png`;
     const jsonFilename = `${baseFilename}.json`;
-
     if ('showDirectoryPicker' in window) {
         try {
             if (!directoryHandle) {
                 directoryHandle = await window.showDirectoryPicker();
             }
-
             const tempCanvas = document.createElement('canvas');
             const tempCtx = tempCanvas.getContext('2d');
             tempCanvas.width = currentImage.width;
             tempCanvas.height = currentImage.height;
             tempCtx.drawImage(currentImage, 0, 0);
             const imageBlob = await new Promise(resolve => tempCanvas.toBlob(resolve, 'image/png'));
-
             const categories = createCategories();
             const cocoAnnotations = createCocoAnnotations(categories.categoryMap);
             const cocoData = {
@@ -178,19 +166,15 @@ saveButton.addEventListener('click', async () => {
                 is_match: isMatchSelect.value
             };
             const jsonBlob = new Blob([JSON.stringify(cocoData, null, 2)], { type: 'application/json' });
-
             const imageFileHandle = await directoryHandle.getFileHandle(imageFilename, { create: true });
             const imageWritable = await imageFileHandle.createWritable();
             await imageWritable.write(imageBlob);
             await imageWritable.close();
-
             const jsonFileHandle = await directoryHandle.getFileHandle(jsonFilename, { create: true });
             const jsonWritable = await jsonFileHandle.createWritable();
             await jsonWritable.write(jsonBlob);
             await jsonWritable.close();
-
             alert('Files saved successfully!');
-
         } catch (error) {
             if (error.name !== 'AbortError') {
                 console.error('File System Access API failed:', error);
@@ -220,17 +204,15 @@ canvas.addEventListener('mousemove', (e) => {
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     currentBox = { box: [Math.min(startX, x), Math.min(startY, y), Math.max(startX, x), Math.max(startY, y)] };
-    redraw();
+    redrawCanvas();
 });
 
 canvas.addEventListener('mouseup', (e) => {
     if (!isDrawing || !currentImage) return;
-
     const rect = canvas.getBoundingClientRect();
     const endX = e.clientX - rect.left;
     const endY = e.clientY - rect.top;
     const distance = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
-
     if (distance > CLICK_DRAG_THRESHOLD) {
         if (currentBox) {
             const label = prompt('Enter a label for the new bounding box:');
@@ -276,36 +258,42 @@ deleteButton.addEventListener('click', () => {
 });
 
 function getAnnotationAt(x, y) {
-    for (let i = annotations.length - 1; i >= 0; i--) {
-        const box = annotations[i].box;
+    let clickedAnnotations = [];
+    annotations.forEach((ann, index) => {
+        const box = ann.box;
         if (x >= box[0] && x <= box[2] && y >= box[1] && y <= box[3]) {
-            return i;
+            const width = box[2] - box[0];
+            const height = box[3] - box[1];
+            clickedAnnotations.push({ index: index, area: width * height });
         }
-    }
-    return null;
+    });
+    if (clickedAnnotations.length === 0) return null;
+    clickedAnnotations.sort((a, b) => a.area - b.area);
+    return clickedAnnotations[0].index;
 }
 
 function redraw() {
+    redrawCanvas();
+    updateCaptionsList();
+}
+
+function redrawCanvas() {
     if (!currentImage) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         return;
     }
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(currentImage, 0, 0);
-    captionsDiv.innerHTML = '';
-
     if (currentBox) {
         ctx.strokeStyle = colorPicker.value;
         ctx.lineWidth = 2;
         ctx.strokeRect(currentBox.box[0], currentBox.box[1], currentBox.box[2] - currentBox.box[0], currentBox.box[3] - currentBox.box[1]);
     }
-
     annotations.forEach((annotation, index) => {
         ctx.strokeStyle = colorPicker.value;
         ctx.lineWidth = 2;
         ctx.shadowColor = 'transparent';
         ctx.shadowBlur = 0;
-
         if (index === highlightedAnnotation) {
             ctx.lineWidth = 4;
             ctx.shadowColor = 'yellow';
@@ -315,23 +303,34 @@ function redraw() {
             ctx.lineWidth = 4;
             ctx.strokeStyle = '#00FF00';
         }
-
         const box_width = annotation.box[2] - annotation.box[0];
         const box_height = annotation.box[3] - annotation.box[1];
         ctx.strokeRect(annotation.box[0], annotation.box[1], box_width, box_height);
-
         ctx.font = '20px Arial';
         ctx.fillStyle = (index === selectedAnnotation) ? '#00FF00' : colorPicker.value;
         ctx.fillText(index + 1, annotation.box[0], annotation.box[1] - 5);
+    });
+}
 
+function updateCaptionsList() {
+    captionsDiv.innerHTML = '';
+    annotations.forEach((annotation, index) => {
         const captionItem = document.createElement('div');
         captionItem.classList.add('caption-item');
         captionItem.textContent = `${index + 1}. ${annotation.label}`;
-        if(index === selectedAnnotation){ captionItem.style.backgroundColor = '#e0ffe0'; }
-
-        captionItem.addEventListener('mouseover', () => { highlightedAnnotation = index; redraw(); });
-        captionItem.addEventListener('mouseout', () => { highlightedAnnotation = null; redraw(); });
-        captionItem.addEventListener('click', () => {
+        if(index === selectedAnnotation) {
+            captionItem.style.backgroundColor = '#e0ffe0';
+        }
+        captionItem.addEventListener('mouseover', () => {
+            highlightedAnnotation = index;
+            redrawCanvas();
+        });
+        captionItem.addEventListener('mouseout', () => {
+            highlightedAnnotation = null;
+            redrawCanvas();
+        });
+        captionItem.addEventListener('click', (e) => {
+            e.stopPropagation();
             selectedAnnotation = index;
             labelInput.value = annotations[selectedAnnotation].label;
             redraw();

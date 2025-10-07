@@ -1,4 +1,4 @@
-/* Version 3.1 */
+/* Version 3.3 */
 body {
     font-family: sans-serif;
 }
@@ -23,8 +23,9 @@ h1 {
     border: 1px solid #ccc;
     margin-right: 20px;
     overflow-y: auto;
-    position: relative; /* Ensure z-index is respected */
-    z-index: 10;      /* Place sidebar above other elements */
+    /* Establish a stacking context to ensure this is on top */
+    position: relative;
+    z-index: 10;
 }
 
 .sidebar > div {
@@ -66,6 +67,9 @@ button {
     justify-content: center;
     border: 1px solid #ccc;
     padding: 10px;
+    /* Establish a lower stacking context */
+    position: relative;
+    z-index: 1;
 }
 
 canvas {
