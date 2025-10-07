@@ -1,4 +1,4 @@
-<!-- Version 1.1 -->
+<!-- Version 3.0 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -9,17 +9,38 @@
 </head>
 <body>
     <h1>Image Annotation Tool</h1>
-    <div class="container">
-        <div class="controls">
-            <input type="file" id="imageLoader">
-            <label for="colorPicker">Bounding Box Color:</label>
-            <input type="color" id="colorPicker" value="#FF0000">
-            <div id="captions"></div>
+    <div class="main-container">
+        <div class="sidebar">
+            <div class="controls">
+                <input type="file" id="imageLoader">
+                <label for="colorPicker">Bounding Box Color:</label>
+                <input type="color" id="colorPicker" value="#FF0000">
+                <button id="detectButton">Detect Objects</button>
+            </div>
+            <div class="annotation-controls">
+                <label for="frameTheme">Frame Theme:</label>
+                <input type="text" id="frameTheme" placeholder="e.g., forest, beach">
+                <label for="backgroundTheme">Background Theme:</label>
+                <input type="text" id="backgroundTheme" placeholder="e.g., forest, beach">
+                <label for="isMatch">Are they a match?</label>
+                <select id="isMatch">
+                    <option value="true">True</option>
+                    <option value="false">False</option>
+                </select>
+            </div>
+            <div class="edit-controls">
+                <label for="labelInput">Edit Label:</label>
+                <input type="text" id="labelInput">
+                <button id="updateLabelButton">Update Label</button>
+                <button id="deleteButton">Delete Selected</button>
+            </div>
+             <div id="captions"></div>
+            <button id="saveButton">Save Annotation</button>
         </div>
-        <canvas id="canvas"></canvas>
+        <div class="image-container">
+            <canvas id="canvas"></canvas>
+        </div>
     </div>
-    <button id="detectButton">Detect Objects</button>
-    <button id="saveButton">Save Annotations</button>
     <script src="script.js"></script>
 </body>
 </html>

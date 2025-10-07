@@ -1,15 +1,32 @@
-/* Version 1.1 */
+/* Version 2.5 */
 const imageLoader = document.getElementById('imageLoader');
 const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
 const saveButton = document.getElementById('saveButton');
 const detectButton = document.getElementById('detectButton');
 const colorPicker = document.getElementById('colorPicker');
 const captionsDiv = document.getElementById('captions');
-const ctx = canvas.getContext('2d');
+
+const frameThemeInput = document.getElementById('frameTheme');
+const backgroundThemeInput = document.getElementById('backgroundTheme');
+const isMatchSelect = document.getElementById('isMatch');
+
+const labelInput = document.getElementById('labelInput');
+const updateLabelButton = document.getElementById('updateLabelButton');
+const deleteButton = document.getElementById('deleteButton');
 
 let currentImage;
 let annotations = [];
 let highlightedAnnotation = null;
+let selectedAnnotation = null;
+
+let isDrawing = false;
+let startX, startY;
+let currentBox = null;
+
+// The distance in pixels to differentiate a click from a drag.
+const CLICK_DRAG_THRESHOLD = 5;
 
 imageLoader.addEventListener('change', (e) => {
     const reader = new FileReader();
@@ -21,6 +38,9 @@ imageLoader.addEventListener('change', (e) => {
             ctx.drawImage(img, 0, 0);
             currentImage = img;
             annotations = [];
+            selectedAnnotation = null;
+            highlightedAnnotation = null;
+            labelInput.value = '';
             redraw();
         }
         img.src = event.target.result;
@@ -61,25 +81,195 @@ detectButton.addEventListener('click', async () => {
 });
 
 saveButton.addEventListener('click', () => {
-    const saveData = {
-        annotations: annotations,
+    if (!currentImage) {
+        alert('Please load an image first.');
+        return;
+    }
+
+    // 1. Get clean image data (without annotations)
+    const tempCanvas = document.createElement('canvas');
+    const tempCtx = tempCanvas.getContext('2d');
+    tempCanvas.width = currentImage.width;
+    tempCanvas.height = currentImage.height;
+    tempCtx.drawImage(currentImage, 0, 0);
+    const imageDataUrl = tempCanvas.toDataURL('image/png');
+    const imageBase64 = imageDataUrl.split(',')[1];
+
+    // 2. Generate filename
+    const frameTheme = frameThemeInput.value.replace(/\s+/g, '_') || 'custom';
+    const backgroundTheme = backgroundThemeInput.value.replace(/\s+/g, '_') || 'custom';
+    const timestamp = new Date().getTime();
+    const baseFilename = `${frameTheme}_${backgroundTheme}_${timestamp}`;
+    const imageFilename = `${baseFilename}.png`;
+    const jsonFilename = `${baseFilename}.json`;
+
+    // 3. Prepare COCO-like data
+    const categories = [];
+    const categoryMap = {}; // Maps label name to category ID
+
+    annotations.forEach(ann => {
+        if (!categoryMap.hasOwnProperty(ann.label)) {
+            const newCategory = {
+                id: categories.length + 1,
+                name: ann.label,
+                supercategory: 'object' // A default supercategory
+            };
+            categories.push(newCategory);
+            categoryMap[ann.label] = newCategory.id;
+        }
+    });
+
+    const cocoAnnotations = annotations.map((ann, index) => {
+        const box = ann.box; // [x1, y1, x2, y2]
+        const width = box[2] - box[0];
+        const height = box[3] - box[1];
+        const area = width * height;
+
+        return {
+            id: index + 1,
+            image_id: 1,
+            category_id: categoryMap[ann.label],
+            bbox: [box[0], box[1], width, height],
+            area: area,
+            iscrowd: 0
+        };
+    });
+
+    const cocoData = {
+        info: {
+            description: 'Annotation created with custom tool',
+            version: '1.0',
+            year: new Date().getFullYear(),
+            date_created: new Date().toISOString()
+        },
+        images: [{
+            id: 1,
+            width: canvas.width,
+            height: canvas.height,
+            file_name: imageFilename
+        }],
+        annotations: cocoAnnotations,
+        categories: categories,
+        image_path: imageFilename,
+        frame_theme: frameThemeInput.value,
+        background_theme: backgroundThemeInput.value,
+        is_match: isMatchSelect.value,
+        image_data: imageBase64
     };
-    const data = JSON.stringify(saveData, null, 2);
-    const blob = new Blob([data], {type: 'application/json'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'annotations.json';
-    a.click();
-    URL.revokeObjectURL(url);
+
+    // 4. Download unified JSON
+    const jsonBlob = new Blob([JSON.stringify(cocoData, null, 2)], { type: 'application/json' });
+    const jsonUrl = URL.createObjectURL(jsonBlob);
+    const jsonLink = document.createElement('a');
+    jsonLink.href = jsonUrl;
+    jsonLink.download = jsonFilename;
+    jsonLink.click();
+    URL.revokeObjectURL(jsonUrl);
 });
+
+canvas.addEventListener('mousedown', (e) => {
+    isDrawing = true;
+    const rect = canvas.getBoundingClientRect();
+    startX = e.clientX - rect.left;
+    startY = e.clientY - rect.top;
+});
+
+canvas.addEventListener('mousemove', (e) => {
+    if (!isDrawing) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    currentBox = {
+        box: [
+            Math.min(startX, x),
+            Math.min(startY, y),
+            Math.max(startX, x),
+            Math.max(startY, y)
+        ]
+    };
+    redraw();
+});
+
+canvas.addEventListener('mouseup', (e) => {
+    if (!isDrawing) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const endX = e.clientX - rect.left;
+    const endY = e.clientY - rect.top;
+
+    const distance = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
+
+    if (distance > CLICK_DRAG_THRESHOLD) {
+        if (currentBox) {
+            const label = prompt('Enter a label for the new bounding box:');
+            if (label) {
+                annotations.push({
+                    label: label,
+                    box: currentBox.box
+                });
+                selectedAnnotation = annotations.length - 1;
+                labelInput.value = label;
+            }
+        }
+    } else {
+        const clickedAnnotationIndex = getAnnotationAt(startX, startY);
+        if (clickedAnnotationIndex !== null) {
+            selectedAnnotation = clickedAnnotationIndex;
+            labelInput.value = annotations[selectedAnnotation].label;
+        } else {
+            selectedAnnotation = null;
+            labelInput.value = '';
+        }
+    }
+
+    isDrawing = false;
+    currentBox = null;
+    redraw();
+});
+
+updateLabelButton.addEventListener('click', () => {
+    if (selectedAnnotation !== null) {
+        annotations[selectedAnnotation].label = labelInput.value;
+        redraw();
+    } else {
+        alert('Please select a bounding box to update its label.');
+    }
+});
+
+deleteButton.addEventListener('click', () => {
+    if (selectedAnnotation !== null) {
+        annotations.splice(selectedAnnotation, 1);
+        selectedAnnotation = null;
+        labelInput.value = '';
+        redraw();
+    } else {
+        alert('Please select a bounding box to delete.');
+    }
+});
+
+function getAnnotationAt(x, y) {
+    for (let i = annotations.length - 1; i >= 0; i--) {
+        const box = annotations[i].box;
+        if (x >= box[0] && x <= box[2] && y >= box[1] && y <= box[3]) {
+            return i;
+        }
+    }
+    return null;
+}
 
 function redraw() {
     if (!currentImage) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(currentImage, 0, 0);
-    
-    captionsDiv.innerHTML = ''; // Clear previous captions
+
+    captionsDiv.innerHTML = '';
+
+    if (currentBox) {
+        ctx.strokeStyle = colorPicker.value;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(currentBox.box[0], currentBox.box[1], currentBox.box[2] - currentBox.box[0], currentBox.box[3] - currentBox.box[1]);
+    }
 
     annotations.forEach((annotation, index) => {
         ctx.strokeStyle = colorPicker.value;
@@ -93,25 +283,39 @@ function redraw() {
             ctx.shadowBlur = 10;
         }
 
+        if (index === selectedAnnotation) {
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = '#00FF00'; // Green for selected
+        }
+
         const box_width = annotation.box[2] - annotation.box[0];
         const box_height = annotation.box[3] - annotation.box[1];
         ctx.strokeRect(annotation.box[0], annotation.box[1], box_width, box_height);
 
-        // Draw the number
         ctx.font = '20px Arial';
         ctx.fillStyle = colorPicker.value;
+        if (index === selectedAnnotation) {
+             ctx.fillStyle = '#00FF00';
+        }
         ctx.fillText(index + 1, annotation.box[0], annotation.box[1] - 5);
 
-        // Add caption to the list
         const captionItem = document.createElement('div');
         captionItem.classList.add('caption-item');
         captionItem.textContent = `${index + 1}. ${annotation.label}`;
+        if(index === selectedAnnotation){
+            captionItem.style.backgroundColor = '#e0ffe0';
+        }
         captionItem.addEventListener('mouseover', () => {
             highlightedAnnotation = index;
             redraw();
         });
         captionItem.addEventListener('mouseout', () => {
             highlightedAnnotation = null;
+            redraw();
+        });
+        captionItem.addEventListener('click', () => {
+            selectedAnnotation = index;
+            labelInput.value = annotations[selectedAnnotation].label;
             redraw();
         });
         captionsDiv.appendChild(captionItem);

@@ -1,25 +1,84 @@
-/* Version 1.1 */
+/* Version 3.0 */
 body {
     font-family: sans-serif;
 }
 
-.container {
-    display: flex;
-    flex-direction: row;
+h1 {
+    text-align: center;
 }
 
-.controls {
+.main-container {
+    display: flex;
+    flex-direction: row;
+    width: 95vw;
+    height: 90vh;
+    margin: 0 auto;
+}
+
+.sidebar {
     display: flex;
     flex-direction: column;
+    width: 350px;
+    padding: 15px;
+    border: 1px solid #ccc;
     margin-right: 20px;
+    overflow-y: auto;
+}
+
+.sidebar > div {
+    border-bottom: 1px solid #eee;
+    padding-bottom: 15px;
+    margin-bottom: 15px;
+}
+
+.sidebar > div:last-of-type {
+    border-bottom: none;
+}
+
+.controls, .annotation-controls, .edit-controls {
+    display: flex;
+    flex-direction: column;
+}
+
+.controls > *, .annotation-controls > *, .edit-controls > * {
+    margin-bottom: 10px;
+}
+
+input[type="text"], select {
+    width: 100%;
+    padding: 8px;
+    box-sizing: border-box;
+}
+
+button {
+    padding: 10px 15px;
+    font-size: 1em;
+    cursor: pointer;
+    margin-top: 0;
+}
+
+.image-container {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #ccc;
+    padding: 10px;
 }
 
 canvas {
+    max-width: 100%;
+    max-height: 100%;
     border: 1px solid black;
+    object-fit: contain;
 }
 
 #captions {
-    margin-top: 20px;
+    margin-top: 0;
+    max-height: 250px;
+    overflow-y: auto;
+    border: 1px solid #eee;
+    padding: 5px;
 }
 
 .caption-item {
