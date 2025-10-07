@@ -1,0 +1,32 @@
+/* Version 1.1 */
+body {
+    font-family: sans-serif;
+}
+
+.container {
+    display: flex;
+    flex-direction: row;
+}
+
+.controls {
+    display: flex;
+    flex-direction: column;
+    margin-right: 20px;
+}
+
+canvas {
+    border: 1px solid black;
+}
+
+#captions {
+    margin-top: 20px;
+}
+
+.caption-item {
+    padding: 5px;
+    cursor: pointer;
+}
+
+.caption-item:hover {
+    background-color: #f0f0f0;
+}
