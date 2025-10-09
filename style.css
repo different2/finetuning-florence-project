@@ -1,4 +1,4 @@
-/* Version 3.3 */
+/* Version 3.9 */
 body {
     font-family: sans-serif;
 }
@@ -18,12 +18,11 @@ h1 {
 .sidebar {
     display: flex;
     flex-direction: column;
-    width: 350px;
+    width: 400px;
     padding: 15px;
     border: 1px solid #ccc;
     margin-right: 20px;
     overflow-y: auto;
-    /* Establish a stacking context to ensure this is on top */
     position: relative;
     z-index: 10;
 }
@@ -38,26 +37,105 @@ h1 {
     border-bottom: none;
 }
 
-.controls, .annotation-controls, .edit-controls {
-    display: flex;
-    flex-direction: column;
-}
-
-.controls > *, .annotation-controls > *, .edit-controls > * {
+h3, h4 {
+    margin-top: 5px;
     margin-bottom: 10px;
 }
 
-input[type="text"], select {
+.controls, .project-controls, .scene-controls, .edit-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.project-controls button {
+    background-color: #f0f0f0;
+}
+
+#clearCacheButton {
+    background-color: #ffe0e0; /* More distinct color for a destructive action */
+    border: 1px solid #d0a0a0;
+}
+
+.file-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.file-controls label {
+    flex: 0 0 150px;
+    font-size: 0.9em;
+    font-weight: bold;
+    text-align: right;
+}
+
+.file-controls input[type="file"] {
+    flex: 1;
+    min-width: 0;
+}
+
+.status-box {
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background-color: #f8f8f8;
+    font-size: 0.9em;
+    word-wrap: break-word;
+}
+
+.status-box.success {
+    background-color: #e0ffe0;
+    border-color: #a0d0a0;
+}
+
+.status-box.error {
+    background-color: #ffe0e0;
+    border-color: #d0a0a0;
+}
+
+input[type="color"] {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    cursor: pointer;
+    background-color: transparent;
+}
+
+input[type="color"]::-webkit-color-swatch-wrapper {
+    padding: 0;
+}
+
+input[type="color"]::-webkit-color-swatch {
+    border: none;
+    border-radius: 3px;
+}
+
+input[type="text"], select, textarea {
     width: 100%;
     padding: 8px;
     box-sizing: border-box;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+textarea {
+    resize: vertical;
 }
 
 button {
     padding: 10px 15px;
     font-size: 1em;
     cursor: pointer;
-    margin-top: 0;
+}
+
+#saveButton {
+    margin-top: auto;
 }
 
 .image-container {
@@ -67,7 +145,6 @@ button {
     justify-content: center;
     border: 1px solid #ccc;
     padding: 10px;
-    /* Establish a lower stacking context */
     position: relative;
     z-index: 1;
 }
@@ -81,17 +158,28 @@ canvas {
 
 #captions {
     margin-top: 0;
-    max-height: 250px;
+    max-height: 180px;
     overflow-y: auto;
     border: 1px solid #eee;
     padding: 5px;
+    margin-bottom: 15px;
 }
 
 .caption-item {
-    padding: 5px;
+    padding: 8px 5px;
     cursor: pointer;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.caption-item:last-child {
+    border-bottom: none;
 }
 
 .caption-item:hover {
     background-color: #f0f0f0;
+}
+
+.caption-item.selected {
+    background-color: #e0ffe0;
+    font-weight: bold;
 }

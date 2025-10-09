@@ -1,4 +1,4 @@
-<!-- Version 3.0 -->
+<!-- Version 3.9 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -11,31 +11,68 @@
     <h1>Image Annotation Tool</h1>
     <div class="main-container">
         <div class="sidebar">
+            <!-- General Controls -->
             <div class="controls">
-                <input type="file" id="imageLoader">
-                <label for="colorPicker">Bounding Box Color:</label>
-                <input type="color" id="colorPicker" value="#FF0000">
+                <div class="file-controls">
+                    <label for="imageLoader">Load Image:</label>
+                    <input type="file" id="imageLoader" accept="image/*">
+                    <input type="color" id="colorPicker" value="#FF0000" title="Bounding Box Color">
+                </div>
+                <div class="file-controls">
+                    <label for="jsonLoader">Load Annotation JSON:</label>
+                    <input type="file" id="jsonLoader" accept=".json">
+                </div>
                 <button id="detectButton">Detect Objects</button>
             </div>
-            <div class="annotation-controls">
+
+            <!-- Directory and Category Management -->
+            <div class="project-controls">
+                <h3>Project Directory & Session</h3>
+                <button id="selectDirButton">Select Working Directory</button>
+                <button id="clearCacheButton">Clear Cached Data</button>
+                <div id="dirStatus" class="status-box">No directory selected.</div>
+            </div>
+
+            <!-- Scene-level Metadata -->
+            <div class="scene-controls">
+                <h3>Scene Details</h3>
+                <label for="sceneDescription">Scene Description:</label>
+                <textarea id="sceneDescription" rows="3" placeholder="A detailed description of the entire scene."></textarea>
                 <label for="frameTheme">Frame Theme:</label>
-                <input type="text" id="frameTheme" placeholder="e.g., forest, beach">
+                <input type="text" id="frameTheme" placeholder="e.g., floral, gothic">
                 <label for="backgroundTheme">Background Theme:</label>
-                <input type="text" id="backgroundTheme" placeholder="e.g., forest, beach">
-                <label for="isMatch">Are they a match?</label>
+                <input type="text" id="backgroundTheme" placeholder="e.g., garden, library">
+                <label for="isMatch">Theme Match:</label>
                 <select id="isMatch">
                     <option value="true">True</option>
                     <option value="false">False</option>
                 </select>
+                <label for="styleInput">Style:</label>
+                <input type="text" id="styleInput" placeholder="e.g., anime, gothic">
+                <label for="sourceInput">Source:</label>
+                <input type="text" id="sourceInput" placeholder="e.g., Touhou project">
+                <label for="artistInput">Artist:</label>
+                <input type="text" id="artistInput" placeholder="e.g., unknown">
             </div>
-            <div class="edit-controls">
-                <label for="labelInput">Edit Label:</label>
-                <input type="text" id="labelInput">
-                <button id="updateLabelButton">Update Label</button>
-                <button id="deleteButton">Delete Selected</button>
+
+            <!-- Annotation List and Edit Controls -->
+            <div class="edit-section">
+                <h3>Annotations</h3>
+                <div id="captions"></div>
+                <div class="edit-controls">
+                    <h4>Edit Selected Object</h4>
+                    <label for="labelInput">Label:</label>
+                    <input type="text" id="labelInput">
+                    <label for="objectDescription">Description:</label>
+                    <textarea id="objectDescription" rows="2" placeholder="A description of the selected object."></textarea>
+                    <label for="objectAttributes">Attributes (comma-separated):</label>
+                    <input type="text" id="objectAttributes" placeholder="e.g., smiling, frilled hat">
+                    <button id="updateAnnotationButton">Update Annotation</button>
+                    <button id="deleteButton">Delete Selected</button>
+                </div>
             </div>
-             <div id="captions"></div>
-            <button id="saveButton">Save Annotation</button>
+            
+            <button id="saveButton">Save All Files</button>
         </div>
         <div class="image-container">
             <canvas id="canvas"></canvas>
