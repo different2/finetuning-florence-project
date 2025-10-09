@@ -1,4 +1,4 @@
-/* Version 3.2 */
+/* Version 3.3 */
 const imageLoader = document.getElementById('imageLoader');
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
@@ -209,20 +209,19 @@ canvas.addEventListener('mousemove', (e) => {
 
 canvas.addEventListener('mouseup', (e) => {
     if (!isDrawing || !currentImage) return;
+
     const rect = canvas.getBoundingClientRect();
     const endX = e.clientX - rect.left;
     const endY = e.clientY - rect.top;
     const distance = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
-    if (distance > CLICK_DRAG_THRESHOLD) {
+
+    if (distance > CLICK_DRAG_THRESHOLD) { // This is a drag (new box)
         if (currentBox) {
-            const label = prompt('Enter a label for the new bounding box:');
-            if (label) {
-                annotations.push({ label: label, box: currentBox.box });
-                selectedAnnotation = annotations.length - 1;
-                labelInput.value = label;
-            }
+            annotations.push({ label: 'new annotation', box: currentBox.box });
+            selectedAnnotation = annotations.length - 1;
+            labelInput.value = ''; 
         }
-    } else {
+    } else { // This is a click
         const clickedAnnotationIndex = getAnnotationAt(startX, startY);
         if (clickedAnnotationIndex !== null) {
             selectedAnnotation = clickedAnnotationIndex;
@@ -232,9 +231,14 @@ canvas.addEventListener('mouseup', (e) => {
             labelInput.value = '';
         }
     }
+
     isDrawing = false;
     currentBox = null;
     redraw();
+    
+    if (distance > CLICK_DRAG_THRESHOLD) {
+        labelInput.focus();
+    }
 });
 
 updateLabelButton.addEventListener('click', () => {
