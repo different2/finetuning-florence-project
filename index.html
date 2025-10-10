@@ -1,4 +1,4 @@
-<!-- Version 3.9 -->
+<!-- Version 4.0 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -14,13 +14,17 @@
             <!-- General Controls -->
             <div class="controls">
                 <div class="file-controls">
-                    <label for="imageLoader">Load Image:</label>
+                    <label for="imageLoader">Load Single Image:</label>
                     <input type="file" id="imageLoader" accept="image/*">
-                    <input type="color" id="colorPicker" value="#FF0000" title="Bounding Box Color">
+                </div>
+                <div class="file-controls">
+                    <label for="folderLoader">Load Image Folder:</label>
+                    <button id="folderLoader">Select Folder</button>
                 </div>
                 <div class="file-controls">
                     <label for="jsonLoader">Load Annotation JSON:</label>
                     <input type="file" id="jsonLoader" accept=".json">
+                    <input type="color" id="colorPicker" value="#FF0000" title="Bounding Box Color">
                 </div>
                 <button id="detectButton">Detect Objects</button>
             </div>
@@ -31,6 +35,16 @@
                 <button id="selectDirButton">Select Working Directory</button>
                 <button id="clearCacheButton">Clear Cached Data</button>
                 <div id="dirStatus" class="status-box">No directory selected.</div>
+            </div>
+
+            <!-- Image Navigation -->
+            <div class="navigation-controls">
+                <h3>Image Navigation</h3>
+                <div class="image-nav-buttons">
+                    <button id="prevImage">&lt; Previous</button>
+                    <span id="image-counter">No images loaded</span>
+                    <button id="nextImage">Next &gt;</button>
+                </div>
             </div>
 
             <!-- Scene-level Metadata -->

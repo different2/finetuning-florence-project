@@ -1,6 +1,8 @@
-/* Version 3.9 */
+/* Version 4.0.4 (Errors Fixed) */
+
 // -- DOM Elements --
 const imageLoader = document.getElementById('imageLoader');
+const folderLoader = document.getElementById('folderLoader');
 const jsonLoader = document.getElementById('jsonLoader');
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
@@ -14,6 +16,11 @@ const colorPicker = document.getElementById('colorPicker');
 const selectDirButton = document.getElementById('selectDirButton');
 const clearCacheButton = document.getElementById('clearCacheButton');
 const dirStatus = document.getElementById('dirStatus');
+
+// Navigation
+const prevImageButton = document.getElementById('prevImage');
+const nextImageButton = document.getElementById('nextImage');
+const imageCounter = document.getElementById('image-counter');
 
 // Scene-level inputs
 const sceneDescriptionInput = document.getElementById('sceneDescription');
@@ -34,101 +41,71 @@ const updateAnnotationButton = document.getElementById('updateAnnotationButton')
 const deleteButton = document.getElementById('deleteButton');
 
 // -- App State --
-let currentImage;
-let annotations = []; 
-let highlightedAnnotation = null;
+let currentImage, currentImageFileHandle;
+let annotations = [];
 let selectedAnnotation = null;
-let directoryHandle = null;
+let highlightedAnnotation = null;
+let workingDirectoryHandle = null;
+let imageDirectoryHandle = null;
 let categoryMap = {};
+let imageFiles = [];
+let currentImageIndex = -1;
 
 let isDrawing = false;
-let startX, startY;
-let currentBox = null;
-
+let startX, startY, currentBox;
 const CLICK_DRAG_THRESHOLD = 5;
-const CACHE_KEY_IMAGE = 'annotationTool_image';
-const CACHE_KEY_STATE = 'annotationTool_state';
+const CACHE_KEY_STATE_PREFIX = 'annotationTool_state_';
 
 // -- Initialization --
-document.addEventListener('DOMContentLoaded', loadStateFromCache);
+document.addEventListener('DOMContentLoaded', () => {
+    updateNavigationUI();
+});
 
 // -- Event Listeners --
 
-imageLoader.addEventListener('change', (e) => {
-    if (!e.target.files || e.target.files.length === 0) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-        const img = new Image();
-        img.onload = () => {
-            canvas.width = img.width;
-            canvas.height = img.height;
-            currentImage = img;
-            resetStateForNewImage();
-            ctx.drawImage(img, 0, 0);
-            localStorage.setItem(CACHE_KEY_IMAGE, img.src);
-            redraw();
-        }
-        img.src = event.target.result;
-    }
-    reader.readAsDataURL(e.target.files[0]);
-});
-
-jsonLoader.addEventListener('change', (e) => {
-    if (!e.target.files || e.target.files.length === 0) return;
-    if (!currentImage) {
-        alert('Please load an image before loading annotations.');
-        e.target.value = ''; 
-        return;
-    }
-    const reader = new FileReader();
-    reader.onload = (event) => {
-        try {
-            loadAnnotationJson(event.target.result);
-        } catch (error) {
-            console.error("Error parsing JSON:", error);
-            alert("Failed to parse JSON file.");
-        }
-    };
-    reader.readAsText(e.target.files[0]);
-});
+imageLoader.addEventListener('change', handleSingleImageLoad);
+folderLoader.addEventListener('click', handleFolderLoad);
+jsonLoader.addEventListener('change', handleJsonLoad);
+detectButton.addEventListener('click', detectObjects);
 
 selectDirButton.addEventListener('click', async () => {
     try {
-        directoryHandle = await window.showDirectoryPicker();
-        updateDirectoryStatus(true);
+        workingDirectoryHandle = await window.showDirectoryPicker({ id: 'workingDir', mode: 'readwrite' });
+        updateDirectoryStatus(true, `Save directory set: ${workingDirectoryHandle.name}`);
         await loadCategoryMap();
-    } catch (error) {
-        if (error.name !== 'AbortError') { console.error('Error selecting directory:', error); updateDirectoryStatus(false, 'Error selecting directory.'); }
+    } catch (err) {
+        if (err.name !== 'AbortError') {
+            console.error('Error selecting save directory:', err);
+            updateDirectoryStatus(false, 'Error selecting directory.');
+        }
     }
 });
 
 clearCacheButton.addEventListener('click', () => {
-    if (confirm('Are you sure you want to clear all cached data? This will remove the loaded image and all unsaved annotations.')) {
-        localStorage.removeItem(CACHE_KEY_IMAGE);
-        localStorage.removeItem(CACHE_KEY_STATE);
-        location.reload();
+    if (confirm('Are you sure you want to clear all cached annotation data for all images?')) {
+        Object.keys(localStorage).forEach(key => {
+            if (key.startsWith(CACHE_KEY_STATE_PREFIX)) {
+                localStorage.removeItem(key);
+            }
+        });
+        alert('All cached annotation data has been cleared.');
+        resetStateForNewImage();
+        redraw();
     }
 });
 
-sceneInputs.forEach(input => {
+prevImageButton.addEventListener('click', () => navigateImage(-1));
+nextImageButton.addEventListener('click', () => navigateImage(1));
+document.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    if (e.key === 'ArrowLeft') navigateImage(-1);
+    if (e.key === 'ArrowRight') navigateImage(1);
+});
+
+saveButton.addEventListener('click', saveAnnotation);
+
+[...sceneInputs, labelInput, objectDescriptionInput, objectAttributesInput].forEach(input => {
     input.addEventListener('change', saveStateToCache);
-});
-
-canvas.addEventListener('mouseup', (e) => {
-    // ... (logic from previous versions)
-    if (distance > CLICK_DRAG_THRESHOLD) {
-        if (currentBox) {
-            annotations.push({ label: 'new annotation', box: currentBox.box, description: '', attributes: [] });
-            selectedAnnotation = annotations.length - 1;
-            updateEditFields(selectedAnnotation);
-            labelInput.focus();
-        }
-    } else {
-        selectedAnnotation = getAnnotationAt(startX, startY);
-        updateEditFields(selectedAnnotation);
-    }
-    currentBox = null;
-    redraw();
 });
 
 updateAnnotationButton.addEventListener('click', () => {
@@ -148,36 +125,161 @@ deleteButton.addEventListener('click', () => {
     redraw();
 });
 
-saveButton.addEventListener('click', async () => {
-    if (!currentImage) { alert('Please load an image first.'); return; }
-    if (!directoryHandle) { alert('Please select a working directory first.'); return; }
-    // ... (rest of the save logic is the same)
-    try {
-        updateCategoryMapFromAnnotations();
-        const frameTheme = frameThemeInput.value.replace(/\s+/g, '_').toLowerCase() || 'custom';
-        const backgroundTheme = backgroundThemeInput.value.replace(/\s+/g, '_').toLowerCase() || 'custom';
-        const timestamp = new Date().getTime();
-        const baseFilename = `${frameTheme}_${backgroundTheme}_${timestamp}`;
-        const imageFilename = `${baseFilename}.jpg`;
-        const jsonFilename = `${baseFilename}.json`;
-        const categoryFilename = 'category_map.json';
-        const finalJsonData = createFinalJson(baseFilename, imageFilename);
-
-        await saveFileToDirectory(imageFilename, await getCanvasBlob());
-        await saveFileToDirectory(jsonFilename, new Blob([JSON.stringify(finalJsonData, null, 2)], { type: 'application/json' }));
-        await saveFileToDirectory(categoryFilename, new Blob([JSON.stringify(categoryMap, null, 2)], { type: 'application/json' }));
-        alert(`Files saved successfully!`);
-    } catch (error) {
-        if (error.name !== 'AbortError') { console.error('Save failed:', error); alert('Could not save files.'); }
-    }
+canvas.addEventListener('mousedown', (e) => {
+    if (!currentImage) return;
+    isDrawing = true;
+    const rect = canvas.getBoundingClientRect();
+    startX = (e.clientX - rect.left) * (canvas.width / rect.width);
+    startY = (e.clientY - rect.top) * (canvas.height / rect.height);
 });
 
-// -- State Management & Caching --
+canvas.addEventListener('mousemove', (e) => {
+    if (!isDrawing || !currentImage) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+    const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+    currentBox = { box: [Math.min(startX, x), Math.min(startY, y), Math.max(startX, x), Math.max(startY, y)] };
+    redrawCanvas(); // This will redraw from scratch
+});
+
+canvas.addEventListener('mouseup', (e) => {
+    if (!isDrawing || !currentImage) return;
+    const rect = canvas.getBoundingClientRect();
+    const endX = (e.clientX - rect.left) * (canvas.width / rect.width);
+    const endY = (e.clientY - rect.top) * (canvas.height / rect.height);
+    const distance = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
+    isDrawing = false;
+
+    if (distance > CLICK_DRAG_THRESHOLD) {
+        if (currentBox) {
+            annotations.push({ label: 'new annotation', box: currentBox.box, description: '', attributes: [] });
+            selectedAnnotation = annotations.length - 1;
+            updateEditFields(selectedAnnotation);
+            labelInput.focus();
+        }
+    } else {
+        selectedAnnotation = getAnnotationAt(startX, startY);
+        updateEditFields(selectedAnnotation);
+    }
+    currentBox = null;
+    redraw();
+});
+
+// -- File and Folder Handling --
+
+async function handleFolderLoad() {
+    try {
+        imageDirectoryHandle = await window.showDirectoryPicker({ id: 'imageDir', mode: 'read' });
+        imageFiles = [];
+        const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'];
+        for await (const entry of imageDirectoryHandle.values()) {
+            if (entry.kind === 'file' && imageExtensions.some(ext => entry.name.toLowerCase().endsWith(ext))) {
+                imageFiles.push(entry);
+            }
+        }
+        imageFiles.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+
+        if (imageFiles.length > 0) {
+            await navigateImage(0, true);
+        } else {
+            alert('No valid images found in the selected folder.');
+            currentImageIndex = -1;
+            updateNavigationUI();
+        }
+        if (!workingDirectoryHandle) {
+            workingDirectoryHandle = imageDirectoryHandle;
+            updateDirectoryStatus(true, `Save directory set to: ${workingDirectoryHandle.name}`);
+            await loadCategoryMap();
+        }
+    } catch (err) {
+        if (err.name !== 'AbortError') console.error('Error loading folder:', err);
+    }
+}
+
+async function handleSingleImageLoad(e) {
+    if (!e.target.files || e.target.files.length === 0) return;
+    imageDirectoryHandle = null;
+    imageFiles = [];
+    currentImageIndex = -1;
+    const file = e.target.files[0];
+    currentImageFileHandle = { name: file.name, getFile: async () => file };
+    await loadImageFromFile(file);
+    updateNavigationUI();
+}
+
+function handleJsonLoad(e) {
+    if (!e.target.files || e.target.files.length === 0) return;
+    if (!currentImage) {
+        alert('Please load an image before loading annotations.');
+        e.target.value = ''; return;
+    }
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        try {
+            loadAnnotationData(JSON.parse(event.target.result));
+            alert('Annotation data loaded successfully.');
+        } catch (error) {
+            console.error("Error parsing JSON:", error);
+            alert("Failed to parse JSON file.");
+        }
+    };
+    reader.readAsText(e.target.files[0]);
+}
+
+async function loadImageByIndex(index) {
+    if (index < 0 || index >= imageFiles.length) return;
+    currentImageIndex = index;
+    currentImageFileHandle = imageFiles[index];
+    const file = await currentImageFileHandle.getFile();
+    await loadImageFromFile(file);
+    updateNavigationUI();
+}
+
+async function loadImageFromFile(file) {
+    const imgSrc = URL.createObjectURL(file);
+    const img = new Image();
+    img.src = imgSrc;
+    await img.decode();
+    
+    canvas.width = img.width;
+    canvas.height = img.height;
+    currentImage = img;
+    
+    // Clear canvas completely before drawing new image
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0);
+
+    resetStateForNewImage();
+    
+    if (!loadStateFromCache()) {
+        await autoLoadAnnotationForCurrentImage();
+    }
+    
+    redraw();
+    URL.revokeObjectURL(imgSrc);
+}
+
+async function navigateImage(direction, absolute = false) {
+    if (imageFiles.length === 0 && !absolute) return;
+    const newIndex = absolute ? direction : currentImageIndex + direction;
+    if (newIndex >= 0 && newIndex < imageFiles.length) {
+        await loadImageByIndex(newIndex);
+    }
+}
+
+// -- Data and State Persistence --
+
+function getCacheKeyState() {
+    if (!currentImageFileHandle) return null;
+    return CACHE_KEY_STATE_PREFIX + currentImageFileHandle.name;
+}
 
 function saveStateToCache() {
-    if (!currentImage) return;
+    const stateKey = getCacheKeyState();
+    if (!currentImage || !stateKey) return;
+
     const state = {
-        annotations: annotations,
+        annotations,
         sceneDescription: sceneDescriptionInput.value,
         frameTheme: frameThemeInput.value,
         backgroundTheme: backgroundThemeInput.value,
@@ -185,39 +287,161 @@ function saveStateToCache() {
         style: styleInput.value,
         source: sourceInput.value,
         artist: artistInput.value,
-        selectedAnnotation: selectedAnnotation
+        selectedAnnotation
     };
-    localStorage.setItem(CACHE_KEY_STATE, JSON.stringify(state));
+    try {
+        localStorage.setItem(stateKey, JSON.stringify(state));
+    } catch (e) {
+        console.error("Error saving state to cache:", e);
+        alert("Could not save annotation progress to browser cache.");
+    }
 }
 
 function loadStateFromCache() {
-    const cachedImageSrc = localStorage.getItem(CACHE_KEY_IMAGE);
-    const cachedStateJSON = localStorage.getItem(CACHE_KEY_STATE);
+    const stateKey = getCacheKeyState();
+    if (!stateKey) return false;
 
-    if (cachedImageSrc) {
-        const img = new Image();
-        img.onload = () => {
-            canvas.width = img.width;
-            canvas.height = img.height;
-            currentImage = img;
-            ctx.drawImage(img, 0, 0);
+    const cachedStateJSON = localStorage.getItem(stateKey);
 
-            if (cachedStateJSON) {
-                const state = JSON.parse(cachedStateJSON);
-                annotations = state.annotations || [];
-                sceneDescriptionInput.value = state.sceneDescription || '';
-                frameThemeInput.value = state.frameTheme || '';
-                backgroundThemeInput.value = state.backgroundTheme || '';
-                isMatchSelect.value = state.isMatch || 'true';
-                styleInput.value = state.style || '';
-                sourceInput.value = state.source || '';
-                artistInput.value = state.artist || '';
-                selectedAnnotation = state.selectedAnnotation !== undefined ? state.selectedAnnotation : null;
+    if (cachedStateJSON) {
+        console.log("Loading unsaved work from cache for:", currentImageFileHandle.name);
+        const state = JSON.parse(cachedStateJSON);
+        loadState(state);
+        return true;
+    }
+    return false;
+}
+
+function loadState(state) {
+    annotations = state.annotations || [];
+    sceneDescriptionInput.value = state.sceneDescription || '';
+    frameThemeInput.value = state.frameTheme || '';
+    backgroundThemeInput.value = state.backgroundTheme || '';
+    isMatchSelect.value = state.isMatch || 'true';
+    styleInput.value = state.style || '';
+    sourceInput.value = state.source || '';
+    artistInput.value = state.artist || '';
+    selectedAnnotation = state.selectedAnnotation !== undefined ? state.selectedAnnotation : null;
+    updateEditFields(selectedAnnotation);
+}
+
+async function saveAnnotation() {
+    if (!currentImage || !workingDirectoryHandle || !currentImageFileHandle) {
+        alert('Please load an image and select a save directory first.');
+        return;
+    }
+    try {
+        updateCategoryMapFromAnnotations();
+
+        const baseFilename = currentImageFileHandle.name.substring(0, currentImageFileHandle.name.lastIndexOf('.') || currentImageFileHandle.name.length);
+        const jsonFilename = `${baseFilename}.json`;
+        const categoryFilename = 'category_map.json';
+
+        const finalJsonData = createFinalJson(baseFilename, `${baseFilename}.jpg`);
+
+        await saveFileToDirectory(jsonFilename, new Blob([JSON.stringify(finalJsonData, null, 2)], { type: 'application/json' }));
+        await saveFileToDirectory(categoryFilename, new Blob([JSON.stringify(categoryMap, null, 2)], { type: 'application/json' }));
+        
+        console.log(`Saved annotation file: ${jsonFilename}`);
+        
+        const stateKey = getCacheKeyState();
+        if (stateKey) localStorage.removeItem(stateKey);
+        
+        alert(`Saved annotations for ${currentImageFileHandle.name}`);
+
+    } catch (error) {
+        console.error('File saving failed:', error);
+        alert('Could not save files. See console for details.');
+    }
+}
+
+async function autoLoadAnnotationForCurrentImage() {
+    if (!workingDirectoryHandle || !currentImageFileHandle) return;
+    const imageFileName = currentImageFileHandle.name;
+    const jsonFileName = imageFileName.substring(0, imageFileName.lastIndexOf('.') || imageFileName.length) + '.json';
+
+    try {
+        const jsonFileHandle = await workingDirectoryHandle.getFileHandle(jsonFileName, { create: false });
+        const file = await jsonFileHandle.getFile();
+        const content = await file.text();
+        loadAnnotationData(JSON.parse(content));
+        console.log(`Loaded saved annotation file: ${jsonFileName}`);
+    } catch (error) {
+        if (error.name === 'NotFoundError') {
+            console.log(`No saved annotation file for ${imageFileName}.`);
+        } else {
+            console.error(`Error auto-loading JSON for ${imageFileName}:`, error);
+        }
+    }
+}
+
+function loadAnnotationData(data) {
+    loadState(data);
+    if (data.objects) {
+        data.objects.forEach(obj => {
+            if (obj.label && obj.category_id && !categoryMap[obj.label]) {
+                categoryMap[obj.label] = obj.category_id;
             }
-            redraw();
-            updateEditFields(selectedAnnotation);
-        };
-        img.src = cachedImageSrc;
+        });
+    }
+}
+
+// -- Helper & Utility Functions --
+
+// Helper to convert blob to base64
+function blobToBase64(blob) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result.split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+    });
+}
+
+async function detectObjects() {
+    if (!currentImage) {
+        alert("Please load an image first.");
+        return;
+    }
+    detectButton.textContent = "Detecting...";
+    detectButton.disabled = true;
+
+    try {
+        const imageBlob = await getCanvasBlob('image/png');
+        const imageB64 = await blobToBase64(imageBlob);
+
+        const response = await fetch('http://127.0.0.1:8000/detect-objects', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ image_b64: imageB64 })
+        });
+
+        if (!response.ok) {
+            throw new Error(`Server responded with ${response.status}: ${await response.text()}`);
+        }
+
+        const result = await response.json();
+        const detections = result.objects;
+
+        detections.forEach(det => {
+            const [x1, y1, x2, y2] = det.box;
+            annotations.push({
+                label: det.label,
+                box: [x1, y1, x2, y2],
+                description: '',
+                attributes: []
+            });
+        });
+        redraw();
+
+    } catch (error) {
+        console.error("Object detection failed:", error);
+        alert("Object detection failed. Ensure the backend service is running on port 8000 and check the browser console for details.");
+    } finally {
+        detectButton.textContent = "Detect Objects";
+        detectButton.disabled = false;
     }
 }
 
@@ -227,45 +451,34 @@ function resetStateForNewImage() {
     highlightedAnnotation = null;
     jsonLoader.value = '';
 
-    sceneDescriptionInput.value = '';
-    frameThemeInput.value = '';
-    backgroundThemeInput.value = '';
-    isMatchSelect.value = 'true';
-    styleInput.value = '';
-    sourceInput.value = '';
-    artistInput.value = '';
+    sceneInputs.forEach(input => {
+        if (input.tagName === 'SELECT') {
+            input.value = 'true';
+        } else {
+            input.value = '';
+        }
+    });
     updateEditFields(null);
-
-    // Clear previous state from cache on new image load
-    localStorage.removeItem(CACHE_KEY_STATE);
 }
-
-// -- Other Helper Functions --
-// Includes redraw, updateCaptionsList, createFinalJson, etc.
-// (These functions are largely the same as version 3.8 but might call saveStateToCache)
 
 function redraw() {
     redrawCanvas();
     updateCaptionsList();
-    saveStateToCache(); // Save state on every redraw
+    saveStateToCache();
 }
 
-// The rest of the helper functions (loadCategoryMap, updateDirectoryStatus, 
-// getCanvasBlob, saveFileToDirectory, loadAnnotationJson, updateCategoryMapFromAnnotations,
-// createFinalJson, updateEditFields, getAnnotationAt, redrawCanvas, updateCaptionsList) 
-// remain the same as in version 3.8. The only change is that redraw() now calls saveStateToCache().
-// For brevity, I'm not repeating all of them here but they are included in the final file.
 async function loadCategoryMap() {
+    if (!workingDirectoryHandle) return;
     try {
-        const categoryFileHandle = await directoryHandle.getFileHandle('category_map.json');
+        const categoryFileHandle = await workingDirectoryHandle.getFileHandle('category_map.json');
         const file = await categoryFileHandle.getFile();
         const content = await file.text();
         categoryMap = JSON.parse(content);
-        updateDirectoryStatus(true, 'Category map loaded successfully.');
+        updateDirectoryStatus(true, `Save directory: ${workingDirectoryHandle.name}. Category map loaded.`);
     } catch (error) {
         if (error.name === 'NotFoundError') {
-            categoryMap = {}; // Reset if not found
-            updateDirectoryStatus(true, 'No category map found. A new one will be created on save.');
+            categoryMap = {};
+            updateDirectoryStatus(true, `Save directory: ${workingDirectoryHandle.name}. New category map will be created.`);
         } else {
             console.error('Error loading category map:', error);
             updateDirectoryStatus(false, 'Error loading category map.');
@@ -277,56 +490,34 @@ function updateDirectoryStatus(success, message = '') {
     dirStatus.classList.remove('success', 'error');
     if (success) {
         dirStatus.classList.add('success');
-        dirStatus.textContent = `Directory: ${directoryHandle.name}. ${message}`;
+        dirStatus.textContent = message || `Directory: ${workingDirectoryHandle.name}`;
     } else {
         dirStatus.classList.add('error');
         dirStatus.textContent = message || 'No directory selected.';
     }
 }
 
-async function getCanvasBlob() {
-    const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = currentImage.width;
-    tempCanvas.height = currentImage.height;
-    tempCanvas.getContext('2d').drawImage(currentImage, 0, 0);
-    return new Promise(resolve => tempCanvas.toBlob(resolve, 'image/jpeg'));
+function updateNavigationUI() {
+    if (imageFiles.length > 0) {
+        imageCounter.textContent = `Image ${currentImageIndex + 1} of ${imageFiles.length}`;
+        prevImageButton.disabled = currentImageIndex === 0;
+        nextImageButton.disabled = currentImageIndex === imageFiles.length - 1;
+    } else {
+        imageCounter.textContent = 'No folder loaded';
+        prevImageButton.disabled = true;
+        nextImageButton.disabled = true;
+    }
+}
+
+async function getCanvasBlob(format = 'image/png') {
+    return new Promise(resolve => canvas.toBlob(resolve, format, 0.95));
 }
 
 async function saveFileToDirectory(filename, data) {
-    const fileHandle = await directoryHandle.getFileHandle(filename, { create: true });
+    const fileHandle = await workingDirectoryHandle.getFileHandle(filename, { create: true });
     const writable = await fileHandle.createWritable();
     await writable.write(data);
     await writable.close();
-}
-
-function loadAnnotationJson(jsonContent) {
-    const data = JSON.parse(jsonContent);
-
-    sceneDescriptionInput.value = data.scene_description || '';
-    isMatchSelect.value = data.theme_match !== undefined ? data.theme_match.toString() : 'true';
-    if (data.metadata) {
-        styleInput.value = data.metadata.style || '';
-        sourceInput.value = data.metadata.source || '';
-        artistInput.value = data.metadata.artist || '';
-    }
-    const parts = data.image_id ? data.image_id.split('_') : [];
-    frameThemeInput.value = parts[0] || '';
-    backgroundThemeInput.value = parts[1] || '';
-
-    annotations = data.objects.map(obj => {
-        const [x, y, w, h] = obj.bbox;
-        return { label: obj.label, box: [x, y, x + w, y + h], description: obj.description || '', attributes: obj.attributes || [] };
-    });
-
-    categoryMap = {}; // Reset and rebuild from the JSON file
-    data.objects.forEach(obj => {
-        if (obj.label && obj.category_id) { categoryMap[obj.label] = obj.category_id; }
-    });
-
-    selectedAnnotation = null;
-    updateEditFields(null);
-    redraw();
-    alert('Annotation data loaded successfully.\nCategory map has been updated from this file.');
 }
 
 function updateCategoryMapFromAnnotations() {
@@ -343,11 +534,18 @@ function updateCategoryMapFromAnnotations() {
 function createFinalJson(imageId, imagePath) {
     const objects = annotations.map((ann, index) => {
         const label = ann.label.trim();
-        if (!label) { console.warn(`Annotation ${index + 1} has an empty label and will be skipped.`); return null; }
+        if (!label) {
+            console.warn(`Annotation ${index + 1} has an empty label and will be skipped.`);
+            return null;
+        }
+        const categoryId = categoryMap[label];
+        if (!categoryId) {
+            console.warn(`Label "${label}" not in category map. It will be added on next save.`);
+        }
         return {
             id: index + 1,
             label: label,
-            category_id: categoryMap[label],
+            category_id: categoryId,
             bbox: [ann.box[0], ann.box[1], ann.box[2] - ann.box[0], ann.box[3] - ann.box[1]],
             description: ann.description,
             attributes: ann.attributes
@@ -360,7 +558,12 @@ function createFinalJson(imageId, imagePath) {
         scene_description: sceneDescriptionInput.value,
         theme_match: isMatchSelect.value === 'true',
         objects: objects,
-        metadata: { style: styleInput.value, source: sourceInput.value, artist: artistInput.value, resolution: `${currentImage.width}x${currentImage.height}` }
+        metadata: {
+            style: styleInput.value,
+            source: sourceInput.value,
+            artist: artistInput.value,
+            resolution: `${currentImage.width}x${currentImage.height}`
+        }
     };
 }
 
@@ -381,7 +584,8 @@ function getAnnotationAt(x, y) {
     const clicked = annotations.map((ann, index) => {
         const box = ann.box;
         if (x >= box[0] && x <= box[2] && y >= box[1] && y <= box[3]) {
-            return { index, area: (box[2] - box[0]) * (box[3] - box[1]) };
+            const area = (box[2] - box[0]) * (box[3] - box[1]);
+            return { index, area };
         }
         return null;
     }).filter(Boolean);
@@ -391,16 +595,13 @@ function getAnnotationAt(x, y) {
 }
 
 function redrawCanvas() {
-    if (!currentImage) { ctx.clearRect(0, 0, canvas.width, canvas.height); return; }
+    if (!currentImage) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        return;
+    }
+    // Clear the canvas completely first to avoid drawing artifacts
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(currentImage, 0, 0);
-
-    if (currentBox) {
-        ctx.strokeStyle = colorPicker.value;
-        ctx.lineWidth = 2;
-        const [x1, y1, x2, y2] = currentBox.box;
-        ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
-    }
 
     annotations.forEach((ann, index) => {
         ctx.lineWidth = 2;
@@ -426,6 +627,13 @@ function redrawCanvas() {
         ctx.fillStyle = (index === selectedAnnotation) ? '#00FF00' : colorPicker.value;
         ctx.fillText(index + 1, x1, y1 - 5);
     });
+
+    if (currentBox) {
+        ctx.strokeStyle = colorPicker.value;
+        ctx.lineWidth = 2;
+        const [x1, y1, x2, y2] = currentBox.box;
+        ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
+    }
 }
 
 function updateCaptionsList() {
@@ -442,7 +650,7 @@ function updateCaptionsList() {
             e.stopPropagation();
             selectedAnnotation = index;
             updateEditFields(index);
-            redraw(); 
+            redraw();
         });
         captionsDiv.appendChild(captionItem);
     });

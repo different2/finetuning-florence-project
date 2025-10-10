@@ -1,4 +1,4 @@
-/* Version 3.9 */
+/* Version 4.0 */
 body {
     font-family: sans-serif;
 }
@@ -42,19 +42,10 @@ h3, h4 {
     margin-bottom: 10px;
 }
 
-.controls, .project-controls, .scene-controls, .edit-controls {
+.controls, .project-controls, .scene-controls, .edit-controls, .navigation-controls {
     display: flex;
     flex-direction: column;
     gap: 10px;
-}
-
-.project-controls button {
-    background-color: #f0f0f0;
-}
-
-#clearCacheButton {
-    background-color: #ffe0e0; /* More distinct color for a destructive action */
-    border: 1px solid #d0a0a0;
 }
 
 .file-controls {
@@ -64,15 +55,35 @@ h3, h4 {
 }
 
 .file-controls label {
-    flex: 0 0 150px;
+    flex: 0 0 150px; /* Increased width to fit 'Load Image Folder:' */
     font-size: 0.9em;
     font-weight: bold;
     text-align: right;
 }
 
-.file-controls input[type="file"] {
+.file-controls input[type="file"], .file-controls button {
     flex: 1;
     min-width: 0;
+}
+
+.image-nav-buttons {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+#image-counter {
+    font-weight: bold;
+    font-size: 0.9em;
+}
+
+.project-controls button {
+    background-color: #f0f0f0;
+}
+
+#clearCacheButton {
+    background-color: #ffe0e0;
+    border: 1px solid #d0a0a0;
 }
 
 .status-box {
