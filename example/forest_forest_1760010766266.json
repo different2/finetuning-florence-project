@@ -1,0 +1,259 @@
+{
+  "image_id": "forest_forest_1760010766266",
+  "image_path": "data/images/forest_forest_1760010766266.jpg",
+  "scene_description": "a purple-haired woman with two red eyes and a calm face, in a purple body suit with gold pauldrons holding two red spears, sitting in a field of red flowers inside a forest.",
+  "theme_match": true,
+  "objects": [
+    {
+      "id": 1,
+      "label": "woman",
+      "category_id": 1,
+      "bbox": [
+        82.33699798583984,
+        79.5824966430664,
+        112.88799285888672,
+        108.54000091552734
+      ],
+      "description": "name is Scathach",
+      "attributes": [
+        "purple hair",
+        "red eyes",
+        "calm expression",
+        "purple bodysuit",
+        "gold shoulder armor",
+        "sitting pose",
+        "holding spear"
+      ]
+    },
+    {
+      "id": 2,
+      "label": "outfit",
+      "category_id": 2,
+      "bbox": [
+        62.060997009277344,
+        137.90249633789062,
+        171.24999237060547,
+        179.41500854492188
+      ],
+      "description": "purple bodysuit with gold pauldrons",
+      "attributes": [
+        "purple"
+      ]
+    },
+    {
+      "id": 3,
+      "label": "hair",
+      "category_id": 3,
+      "bbox": [
+        83.15899658203125,
+        80.79750061035156,
+        110.4219970703125,
+        107.32499694824219
+      ],
+      "description": "straight, long, purple hair flowing down her back",
+      "attributes": [
+        "straight",
+        "long",
+        "purple"
+      ]
+    },
+    {
+      "id": 4,
+      "label": "name",
+      "category_id": 4,
+      "bbox": [
+        67.81499481201172,
+        50.82749938964844,
+        142.20600128173828,
+        35.23500061035156
+      ],
+      "description": "Scathach",
+      "attributes": []
+    },
+    {
+      "id": 5,
+      "label": "series",
+      "category_id": 5,
+      "bbox": [
+        65.3489990234375,
+        311.24249267578125,
+        144.3979949951172,
+        23.490020751953125
+      ],
+      "description": "Fate/Grand Order",
+      "attributes": []
+    },
+    {
+      "id": 6,
+      "label": "main art",
+      "category_id": 6,
+      "bbox": [
+        55.09782608695652,
+        80.82741477272727,
+        170.75362318840578,
+        228.86977886977888
+      ],
+      "description": "A woman kneels in a red flower field inside a forest holding two red spears",
+      "attributes": [
+        "forest",
+        "flowers",
+        "spear",
+        "woman",
+        "sitting"
+      ]
+    },
+    {
+      "id": 7,
+      "label": "rainforest frame",
+      "category_id": 7,
+      "bbox": [
+        8.43840579710145,
+        4.2057931511056506,
+        259.10869565217394,
+        388.0835380835381
+      ],
+      "description": "A wooden frame with flowers, leaves, and a bug on the left side, a snake on the right side.",
+      "attributes": [
+        "wooden",
+        "snake",
+        "flowers",
+        "bug"
+      ]
+    },
+    {
+      "id": 8,
+      "label": "eyes",
+      "category_id": 8,
+      "bbox": [
+        106.72101449275362,
+        90.77827472358722,
+        66.51449275362319,
+        21.891891891891888
+      ],
+      "description": "two red eyes",
+      "attributes": [
+        "red"
+      ]
+    },
+    {
+      "id": 9,
+      "label": "face",
+      "category_id": 9,
+      "bbox": [
+        108.70652173913044,
+        91.77336071867322,
+        63.53623188405797,
+        55.72481572481573
+      ],
+      "description": "a calm face looking straight",
+      "attributes": [
+        "calm"
+      ]
+    },
+    {
+      "id": 10,
+      "label": "pauldron",
+      "category_id": 10,
+      "bbox": [
+        50.13405797101449,
+        141.52766047297297,
+        52.61594202898551,
+        50.74938574938574
+      ],
+      "description": "golden armor on the shoulder",
+      "attributes": [
+        "gold"
+      ]
+    },
+    {
+      "id": 11,
+      "label": "pauldron",
+      "category_id": 10,
+      "bbox": [
+        168.27173913043478,
+        137.547316492629,
+        60.55797101449275,
+        68.66093366093367
+      ],
+      "description": "golden armor on the shoulder",
+      "attributes": [
+        "gold"
+      ]
+    },
+    {
+      "id": 12,
+      "label": "spear",
+      "category_id": 11,
+      "bbox": [
+        64.03260869565217,
+        219.14436808968057,
+        151.89130434782606,
+        110.45454545454547
+      ],
+      "description": "a red spear",
+      "attributes": [
+        "red"
+      ]
+    },
+    {
+      "id": 13,
+      "label": "snake",
+      "category_id": 12,
+      "bbox": [
+        211.95289855072463,
+        137.547316492629,
+        55.59420289855075,
+        203.992628992629
+      ],
+      "description": "a part of rainforest frame",
+      "attributes": []
+    },
+    {
+      "id": 14,
+      "label": "flowers",
+      "category_id": 13,
+      "bbox": [
+        13.402173913043478,
+        142.52274646805895,
+        31.768115942028984,
+        152.24815724815724
+      ],
+      "description": "a part of rainforest frame",
+      "attributes": []
+    },
+    {
+      "id": 15,
+      "label": "bug",
+      "category_id": 14,
+      "bbox": [
+        18.365942028985508,
+        59.93060887592137,
+        22.83333333333333,
+        35.82309582309582
+      ],
+      "description": "a part of rainforest frame",
+      "attributes": []
+    },
+    {
+      "id": 16,
+      "label": "spear",
+      "category_id": 11,
+      "bbox": [
+        44.177536231884055,
+        208.19842214373463,
+        47.65217391304348,
+        109.45945945945945
+      ],
+      "description": "a red spear",
+      "attributes": [
+        "red"
+      ]
+    }
+  ],
+  "metadata": {
+    "style": "Anime character portrait",
+    "source": "Fate/Grand Order",
+    "artist": "official art",
+    "resolution": "274x405"
+  }
+}
