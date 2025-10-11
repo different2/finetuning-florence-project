@@ -1,196 +1,196 @@
-/* Version 4.0 */
+/* Version 5.1 (Classic Menu & Bug Fixes) */
+
+/* -- General Body & Layout -- */
 body {
-    font-family: sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    margin: 0;
+    background-color: #f0f0f0;
 }
 
 h1 {
     text-align: center;
+    background-color: #333;
+    color: white;
+    padding: 10px 0;
+    margin: 0;
+    font-size: 1.5em;
 }
 
 .main-container {
     display: flex;
-    flex-direction: row;
-    width: 95vw;
-    height: 90vh;
-    margin: 0 auto;
+    margin-top: 10px;
+    gap: 15px;
+    padding: 0 15px;
 }
 
-.sidebar {
+/* -- Classic Dropdown Menu Bar -- */
+.menu-bar {
     display: flex;
-    flex-direction: column;
-    width: 400px;
-    padding: 15px;
-    border: 1px solid #ccc;
-    margin-right: 20px;
-    overflow-y: auto;
+    align-items: center;
+    background-color: #e2e2e2;
+    padding: 0 10px;
+    border-bottom: 1px solid #ccc;
+    height: 35px;
+}
+
+.dropdown {
     position: relative;
-    z-index: 10;
+    display: inline-block;
 }
 
-.sidebar > div {
-    border-bottom: 1px solid #eee;
-    padding-bottom: 15px;
-    margin-bottom: 15px;
+.dropbtn {
+    background-color: transparent;
+    color: #333;
+    padding: 8px 12px;
+    font-size: 14px;
+    border: none;
+    cursor: pointer;
+    border-radius: 4px;
 }
 
-.sidebar > div:last-of-type {
-    border-bottom: none;
+.dropdown:hover .dropbtn {
+    background-color: #c8c8c8;
 }
 
-h3, h4 {
-    margin-top: 5px;
-    margin-bottom: 10px;
+.dropdown-content {
+    display: none;
+    position: absolute;
+    background-color: #f1f1f1;
+    min-width: 200px;
+    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+    z-index: 100;
+    border-radius: 4px;
 }
 
-.controls, .project-controls, .scene-controls, .edit-controls, .navigation-controls {
+.dropdown-content a {
+    color: black;
+    padding: 10px 15px;
+    text-decoration: none;
+    display: block;
+    font-size: 14px;
+}
+
+.dropdown-content a:hover {background-color: #ddd;}
+
+.dropdown-content hr {
+    margin: 5px 0;
+    border: 0;
+    border-top: 1px solid #ccc;
+}
+
+.dropdown:hover .dropdown-content {
+    display: block;
+}
+
+#dirStatus {
+    margin-left: auto; /* Pushes the status box to the far right */
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 0.85em;
+}
+
+/* -- Image Viewer Area -- */
+.image-viewer {
+    flex-grow: 1;
     display: flex;
     flex-direction: column;
-    gap: 10px;
-}
-
-.file-controls {
-    display: flex;
     align-items: center;
     gap: 10px;
 }
 
-.file-controls label {
-    flex: 0 0 150px; /* Increased width to fit 'Load Image Folder:' */
-    font-size: 0.9em;
-    font-weight: bold;
-    text-align: right;
+.canvas-container {
+    max-width: 100%;
+    max-height: 75vh;
+    overflow: auto;
+    border: 2px solid #ccc;
+    background-color: #fff;
 }
 
-.file-controls input[type="file"], .file-controls button {
-    flex: 1;
-    min-width: 0;
+canvas {
+    display: block;
+    max-width: 100%;
+    height: auto;
 }
 
 .image-nav-buttons {
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    gap: 15px;
 }
 
-#image-counter {
-    font-weight: bold;
-    font-size: 0.9em;
+/* -- Sidebar Area -- */
+.sidebar {
+    width: 350px;
+    min-width: 300px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    height: calc(100vh - 100px); /* Adjust height based on header and menu bar */
+    overflow-y: auto;
+    padding-right: 10px;
 }
 
-.project-controls button {
-    background-color: #f0f0f0;
+/* -- Control Sections within Sidebar -- */
+.scene-controls, .edit-controls {
+    background-color: #fff;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    padding: 15px;
 }
 
-#clearCacheButton {
-    background-color: #ffe0e0;
-    border: 1px solid #d0a0a0;
+.scene-controls h4, .edit-controls h4 {
+    margin-top: 0;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
 }
 
-.status-box {
-    padding: 10px;
+/* -- General Input & Button Styling -- */
+button {
+    padding: 8px 12px;
     border: 1px solid #ccc;
     border-radius: 4px;
     background-color: #f8f8f8;
-    font-size: 0.9em;
-    word-wrap: break-word;
-}
-
-.status-box.success {
-    background-color: #e0ffe0;
-    border-color: #a0d0a0;
-}
-
-.status-box.error {
-    background-color: #ffe0e0;
-    border-color: #d0a0a0;
-}
-
-input[type="color"] {
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    appearance: none;
-    width: 30px;
-    height: 30px;
-    padding: 0;
-    border: 1px solid #ccc;
-    border-radius: 4px;
     cursor: pointer;
-    background-color: transparent;
+    font-size: 1em;
 }
 
-input[type="color"]::-webkit-color-swatch-wrapper {
-    padding: 0;
-}
+button:hover { background-color: #e9e9e9; border-color: #bbb; }
+button:disabled { cursor: not-allowed; opacity: 0.6; }
 
-input[type="color"]::-webkit-color-swatch {
-    border: none;
-    border-radius: 3px;
-}
-
-input[type="text"], select, textarea {
+input[type="text"], textarea, select {
     width: 100%;
     padding: 8px;
+    margin-bottom: 10px;
     box-sizing: border-box;
     border: 1px solid #ccc;
     border-radius: 4px;
 }
 
-textarea {
-    resize: vertical;
+.edit-controls label, .scene-controls label {
+    display: block;
+    margin-top: 10px;
+    margin-bottom: 5px;
+    font-weight: bold;
+    font-size: 0.9em;
 }
 
-button {
-    padding: 10px 15px;
-    font-size: 1em;
-    cursor: pointer;
-}
+textarea { resize: vertical; }
 
-#saveButton {
-    margin-top: auto;
-}
-
-.image-container {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid #ccc;
-    padding: 10px;
-    position: relative;
-    z-index: 1;
-}
-
-canvas {
-    max-width: 100%;
-    max-height: 100%;
-    border: 1px solid black;
-    object-fit: contain;
-}
+/* -- Specific Element Styles -- */
+#dirStatus.success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+#dirStatus.error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
 
 #captions {
-    margin-top: 0;
-    max-height: 180px;
+    max-height: 200px;
     overflow-y: auto;
     border: 1px solid #eee;
     padding: 5px;
-    margin-bottom: 15px;
+    margin-bottom: 10px;
 }
 
-.caption-item {
-    padding: 8px 5px;
-    cursor: pointer;
-    border-bottom: 1px solid #f0f0f0;
-}
+.caption-item { padding: 5px; cursor: pointer; border-radius: 3px; }
+.caption-item:hover { background-color: #f0f0f0; }
+.caption-item.selected { background-color: #d4edda; font-weight: bold; }
 
-.caption-item:last-child {
-    border-bottom: none;
-}
-
-.caption-item:hover {
-    background-color: #f0f0f0;
-}
-
-.caption-item.selected {
-    background-color: #e0ffe0;
-    font-weight: bold;
-}
+#deleteButton { background-color: #f8d7da; border-color: #f5c6cb; }
+#deleteButton:hover { background-color: #f1b0b7; }

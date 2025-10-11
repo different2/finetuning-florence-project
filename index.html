@@ -1,97 +1,109 @@
-<!-- Version 4.0 -->
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Image Annotation Tool</title>
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
-    <h1>Image Annotation Tool</h1>
-    <div class="main-container">
-        <div class="sidebar">
-            <!-- General Controls -->
-            <div class="controls">
-                <div class="file-controls">
-                    <label for="imageLoader">Load Single Image:</label>
-                    <input type="file" id="imageLoader" accept="image/*">
-                </div>
-                <div class="file-controls">
-                    <label for="folderLoader">Load Image Folder:</label>
-                    <button id="folderLoader">Select Folder</button>
-                </div>
-                <div class="file-controls">
-                    <label for="jsonLoader">Load Annotation JSON:</label>
-                    <input type="file" id="jsonLoader" accept=".json">
-                    <input type="color" id="colorPicker" value="#FF0000" title="Bounding Box Color">
-                </div>
-                <button id="detectButton">Detect Objects</button>
-            </div>
+      <!-- Version 5.1 (Classic Menu & Bug Fixes) -->
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Image Annotation Tool</title>
+          <link rel="stylesheet" href="style.css">
+      </head>
+      <body>
+          <h1>Image Annotation Tool</h1>
 
-            <!-- Directory and Category Management -->
-            <div class="project-controls">
-                <h3>Project Directory & Session</h3>
-                <button id="selectDirButton">Select Working Directory</button>
-                <button id="clearCacheButton">Clear Cached Data</button>
-                <div id="dirStatus" class="status-box">No directory selected.</div>
-            </div>
+          <!-- Classic Dropdown Menu Bar -->
+          <div class="menu-bar">
+              <!-- File Menu -->
+              <div class="dropdown">
+                  <button class="dropbtn">File</button>
+                  <div class="dropdown-content">
+                      <a href="#" id="loadSingleImage">Load Single Image</a>
+                      <a href="#" id="loadFolder">Load Image Folder</a>
+                      <a href="#" id="setSaveDirectory">Set Save Directory</a>
+                      <hr>
+                      <a href="#" id="saveAnnotations">Save Annotations & Image</a>
+                  </div>
+              </div>
 
-            <!-- Image Navigation -->
-            <div class="navigation-controls">
-                <h3>Image Navigation</h3>
-                <div class="image-nav-buttons">
-                    <button id="prevImage">&lt; Previous</button>
-                    <span id="image-counter">No images loaded</span>
-                    <button id="nextImage">Next &gt;</button>
-                </div>
-            </div>
+              <!-- Tools Menu -->
+              <div class="dropdown">
+                  <button class="dropbtn">Tools</button>
+                  <div class="dropdown-content">
+                      <a href="#" id="detectObjects">Detect Objects</a>
+                      <a href="#" id="importJson">Import Annotation JSON</a>
+                  </div>
+              </div>
 
-            <!-- Scene-level Metadata -->
-            <div class="scene-controls">
-                <h3>Scene Details</h3>
-                <label for="sceneDescription">Scene Description:</label>
-                <textarea id="sceneDescription" rows="3" placeholder="A detailed description of the entire scene."></textarea>
-                <label for="frameTheme">Frame Theme:</label>
-                <input type="text" id="frameTheme" placeholder="e.g., floral, gothic">
-                <label for="backgroundTheme">Background Theme:</label>
-                <input type="text" id="backgroundTheme" placeholder="e.g., garden, library">
-                <label for="isMatch">Theme Match:</label>
-                <select id="isMatch">
-                    <option value="true">True</option>
-                    <option value="false">False</option>
-                </select>
-                <label for="styleInput">Style:</label>
-                <input type="text" id="styleInput" placeholder="e.g., anime, gothic">
-                <label for="sourceInput">Source:</label>
-                <input type="text" id="sourceInput" placeholder="e.g., Touhou project">
-                <label for="artistInput">Artist:</label>
-                <input type="text" id="artistInput" placeholder="e.g., unknown">
-            </div>
+              <!-- Session Menu -->
+              <div class="dropdown">
+                  <button class="dropbtn">Session</button>
+                  <div class="dropdown-content">
+                      <a href="#" id="clearAllCache">Clear All Cached Data</a>
+                  </div>
+              </div>
 
-            <!-- Annotation List and Edit Controls -->
-            <div class="edit-section">
-                <h3>Annotations</h3>
-                <div id="captions"></div>
-                <div class="edit-controls">
-                    <h4>Edit Selected Object</h4>
-                    <label for="labelInput">Label:</label>
-                    <input type="text" id="labelInput">
-                    <label for="objectDescription">Description:</label>
-                    <textarea id="objectDescription" rows="2" placeholder="A description of the selected object."></textarea>
-                    <label for="objectAttributes">Attributes (comma-separated):</label>
-                    <input type="text" id="objectAttributes" placeholder="e.g., smiling, frilled hat">
-                    <button id="updateAnnotationButton">Update Annotation</button>
-                    <button id="deleteButton">Delete Selected</button>
-                </div>
-            </div>
-            
-            <button id="saveButton">Save All Files</button>
-        </div>
-        <div class="image-container">
-            <canvas id="canvas"></canvas>
-        </div>
-    </div>
-    <script src="script.js"></script>
-</body>
-</html>
+              <div id="dirStatus" class="status-box">No directory selected.</div>
+          </div>
+
+          <!-- Hidden file inputs, triggered by menu items -->
+          <input type="file" id="imageLoader" accept="image/*" hidden>
+          <input type="file" id="jsonLoader" accept=".json" hidden>
+
+
+          <div class="main-container">
+              <!-- Image Viewer and Navigation -->
+              <div class="image-viewer">
+                  <div class="canvas-container">
+                      <canvas id="canvas"></canvas>
+                  </div>
+                  <div class="image-nav-buttons">
+                      <button id="prevImage">&lt; Prev</button>
+                      <span id="image-counter">No image loaded</span>
+                      <button id="nextImage">Next &gt;</button>
+                  </div>
+              </div>
+
+              <!-- Sidebar for Editing -->
+              <div class="sidebar">
+                  <!-- Scene Controls -->
+                  <div class="scene-controls">
+                      <h4>Scene Information</h4>
+                      <label for="sceneDescription">Scene Description:</label>
+                      <textarea id="sceneDescription" rows="2"></textarea>
+                      <label for="frameTheme">Frame Theme:</label>
+                      <input type="text" id="frameTheme">
+                      <label for="backgroundTheme">Background Theme:</label>
+                      <input type="text" id="backgroundTheme">
+                      <label for="isMatch">Themes Match Scene:</label>
+                      <select id="isMatch">
+                          <option value="true">Yes</option>
+                          <option value="false">No</option>
+                      </select>
+                      <label for="styleInput">Art Style:</label>
+                      <input type="text" id="styleInput">
+                      <label for="sourceInput">Source/Artist:</label>
+                      <input type="text" id="sourceInput">
+                      <label for="artistInput">Artist (if different):</label>
+                      <input type="text" id="artistInput">
+                  </div>
+
+                  <!-- Annotation Controls -->
+                  <div class="edit-controls">
+                      <h4>Annotation Details</h4>
+                      <div id="captions"></div>
+                      <label for="labelInput">Label:</label>
+                      <input type="text" id="labelInput">
+                      <label for="objectDescription">Object Description:</label>
+                      <textarea id="objectDescription" rows="2"></textarea>
+                      <label for="objectAttributes">Attributes (comma-separated):</label>
+                      <input type="text" id="objectAttributes">
+                      <button id="updateAnnotationButton">Update Annotation</button>
+                      <button id="deleteButton">Delete Annotation</button>
+                      <label for="colorPicker">Box Color:</label>
+                      <input type="color" id="colorPicker" value="#FF0000">
+                  </div>
+              </div>
+          </div>
+
+          <script src="script.js"></script>
+      </body>
+      </html>
