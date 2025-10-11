@@ -1,4 +1,4 @@
-/* Version 5.3 (JSON Loading Fix) */
+/* Version 5.3 (UI & API Integration) */
 
 // -- DOM Elements --
 // File Inputs
@@ -187,8 +187,8 @@ async function handleFolderLoad() {
         isSingleImageMode = false;
 
         if (imageFiles.length > 0) {
-            currentImageIndex = 0;
-            await loadImageByIndex(0);
+             currentImageIndex = 0;
+            await navigateImage(0);
         } else {
             alert('No valid images found in the selected folder.');
             currentImageIndex = -1;
@@ -365,46 +365,14 @@ async function autoLoadAnnotationForCurrentImage() {
 }
 
 function loadAnnotationData(data) {
-    // Load scene-level fields
-    sceneDescriptionInput.value = data.scene_description || '';
-    frameThemeInput.value = data.frame_theme || '';
-    backgroundThemeInput.value = data.background_theme || '';
-    isMatchSelect.value = data.theme_match !== undefined ? String(data.theme_match) : 'true';
-    
-    // Load metadata fields
-    if (data.metadata) {
-        styleInput.value = data.metadata.style || '';
-        sourceInput.value = data.metadata.source || '';
-        artistInput.value = data.metadata.artist || '';
-    } else {
-        styleInput.value = '';
-        sourceInput.value = '';
-        artistInput.value = '';
-    }
-    
-    // Load annotations from objects
-    annotations = [];
-    if (data.objects && Array.isArray(data.objects)) {
+    loadState(data);
+    if (data.objects) {
         data.objects.forEach(obj => {
-            if (obj.bbox && obj.bbox.length === 4) {
-                // Convert from [x, y, width, height] to [x1, y1, x2, y2]
-                const box = [obj.bbox[0], obj.bbox[1], obj.bbox[0] + obj.bbox[2], obj.bbox[1] + obj.bbox[3]];
-                annotations.push({
-                    label: obj.label || 'unlabeled',
-                    box: box,
-                    description: obj.description || '',
-                    attributes: obj.attributes || []
-                });
-            }
-            // Update category map
             if (obj.label && obj.category_id && !categoryMap[obj.label]) {
                 categoryMap[obj.label] = obj.category_id;
             }
         });
     }
-    
-    selectedAnnotation = null;
-    updateEditFields(null);
 }
 
 // -- Helper & Utility Functions --
@@ -425,11 +393,18 @@ async function detectObjects() {
             body: JSON.stringify({ image_b64: imageB64 })
         });
         if (!response.ok) throw new Error(`Server responded with ${response.status}: ${await response.text()}`);
+        
         const result = await response.json();
+
+        // ** NEW: Auto-fill scene description **
+        sceneDescriptionInput.value = result.caption || '';
+
         result.objects.forEach(det => {
             annotations.push({ label: det.label, box: det.box, description: '', attributes: [] });
         });
+
         redraw();
+
     } catch (error) {
         console.error("Object detection failed:", error);
         alert("Object detection failed. Ensure the backend service is running and check console.");
@@ -512,21 +487,7 @@ function createFinalJson(imageId, imagePath) {
         if (!label) return null;
         return { id: index + 1, label: label, category_id: categoryMap[label], bbox: [ann.box[0], ann.box[1], ann.box[2] - ann.box[0], ann.box[3] - ann.box[1]], description: ann.description, attributes: ann.attributes };
     }).filter(Boolean);
-    return { 
-        image_id: imageId, 
-        image_path: `data/images/${imagePath}`, 
-        scene_description: sceneDescriptionInput.value,
-        frame_theme: frameThemeInput.value,
-        background_theme: backgroundThemeInput.value,
-        theme_match: isMatchSelect.value === 'true', 
-        objects: objects, 
-        metadata: { 
-            style: styleInput.value, 
-            source: sourceInput.value, 
-            artist: artistInput.value, 
-            resolution: `${currentImage.width}x${currentImage.height}` 
-        } 
-    };
+    return { image_id: imageId, image_path: `data/images/${imagePath}`, scene_description: sceneDescriptionInput.value, theme_match: isMatchSelect.value === 'true', objects: objects, metadata: { style: styleInput.value, source: sourceInput.value, artist: artistInput.value, resolution: `${currentImage.width}x${currentImage.height}` } };
 }
 
 function updateEditFields(index) {

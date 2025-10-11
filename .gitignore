@@ -2,3 +2,7 @@
 *coco_dataset.py
 *coco_preview.ipynb
 *data
+*florence-env
+*.vscode
+*florence_api.py
+*.venv

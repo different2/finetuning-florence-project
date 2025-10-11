@@ -1,109 +1,114 @@
-      <!-- Version 5.1 (Classic Menu & Bug Fixes) -->
-      <!DOCTYPE html>
-      <html lang="en">
-      <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Image Annotation Tool</title>
-          <link rel="stylesheet" href="style.css">
-      </head>
-      <body>
-          <h1>Image Annotation Tool</h1>
+<!-- Version 5.3 (UI & API Integration) -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Annotation Tool</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <h1>Image Annotation Tool</h1>
 
-          <!-- Classic Dropdown Menu Bar -->
-          <div class="menu-bar">
-              <!-- File Menu -->
-              <div class="dropdown">
-                  <button class="dropbtn">File</button>
-                  <div class="dropdown-content">
-                      <a href="#" id="loadSingleImage">Load Single Image</a>
-                      <a href="#" id="loadFolder">Load Image Folder</a>
-                      <a href="#" id="setSaveDirectory">Set Save Directory</a>
-                      <hr>
-                      <a href="#" id="saveAnnotations">Save Annotations & Image</a>
-                  </div>
-              </div>
+    <!-- Classic Dropdown Menu Bar -->
+    <div class="menu-bar">
+        <!-- File Menu -->
+        <div class="dropdown">
+            <button class="dropbtn">File</button>
+            <div class="dropdown-content">
+                <a href="#" id="loadSingleImage">Load Single Image</a>
+                <a href="#" id="loadFolder">Load Image Folder</a>
+                <a href="#" id="setSaveDirectory">Set Save Directory</a>
+                <hr>
+                <a href="#" id="saveAnnotations">Save Annotations & Image</a>
+            </div>
+        </div>
 
-              <!-- Tools Menu -->
-              <div class="dropdown">
-                  <button class="dropbtn">Tools</button>
-                  <div class="dropdown-content">
-                      <a href="#" id="detectObjects">Detect Objects</a>
-                      <a href="#" id="importJson">Import Annotation JSON</a>
-                  </div>
-              </div>
+        <!-- Tools Menu -->
+        <div class="dropdown">
+            <button class="dropbtn">Tools</button>
+            <div class="dropdown-content">
+                <a href="#" id="detectObjects">Detect Objects</a>
+                <a href="#" id="importJson">Import Annotation JSON</a>
+                <hr>
+                <!-- ** Color Picker Moved Here ** -->
+                <div class="menu-item-static">
+                    <span>Box Color:</span>
+                    <input type="color" id="colorPicker" value="#FF0000">
+                </div>
+            </div>
+        </div>
 
-              <!-- Session Menu -->
-              <div class="dropdown">
-                  <button class="dropbtn">Session</button>
-                  <div class="dropdown-content">
-                      <a href="#" id="clearAllCache">Clear All Cached Data</a>
-                  </div>
-              </div>
+        <!-- Session Menu -->
+        <div class="dropdown">
+            <button class="dropbtn">Session</button>
+            <div class="dropdown-content">
+                <a href="#" id="clearAllCache">Clear All Cached Data</a>
+            </div>
+        </div>
 
-              <div id="dirStatus" class="status-box">No directory selected.</div>
-          </div>
+        <div id="dirStatus" class="status-box">No directory selected.</div>
+    </div>
 
-          <!-- Hidden file inputs, triggered by menu items -->
-          <input type="file" id="imageLoader" accept="image/*" hidden>
-          <input type="file" id="jsonLoader" accept=".json" hidden>
+    <!-- Hidden file inputs, triggered by menu items -->
+    <input type="file" id="imageLoader" accept="image/*" hidden>
+    <input type="file" id="jsonLoader" accept=".json" hidden>
 
 
-          <div class="main-container">
-              <!-- Image Viewer and Navigation -->
-              <div class="image-viewer">
-                  <div class="canvas-container">
-                      <canvas id="canvas"></canvas>
-                  </div>
-                  <div class="image-nav-buttons">
-                      <button id="prevImage">&lt; Prev</button>
-                      <span id="image-counter">No image loaded</span>
-                      <button id="nextImage">Next &gt;</button>
-                  </div>
-              </div>
+    <div class="main-container">
+        <!-- Image Viewer and Navigation -->
+        <div class="image-viewer">
+            <div class="canvas-container">
+                <canvas id="canvas"></canvas>
+            </div>
+            <div class="image-nav-buttons">
+                <button id="prevImage">&lt; Prev</button>
+                <span id="image-counter">No image loaded</span>
+                <button id="nextImage">Next &gt;</button>
+            </div>
+        </div>
 
-              <!-- Sidebar for Editing -->
-              <div class="sidebar">
-                  <!-- Scene Controls -->
-                  <div class="scene-controls">
-                      <h4>Scene Information</h4>
-                      <label for="sceneDescription">Scene Description:</label>
-                      <textarea id="sceneDescription" rows="2"></textarea>
-                      <label for="frameTheme">Frame Theme:</label>
-                      <input type="text" id="frameTheme">
-                      <label for="backgroundTheme">Background Theme:</label>
-                      <input type="text" id="backgroundTheme">
-                      <label for="isMatch">Themes Match Scene:</label>
-                      <select id="isMatch">
-                          <option value="true">Yes</option>
-                          <option value="false">No</option>
-                      </select>
-                      <label for="styleInput">Art Style:</label>
-                      <input type="text" id="styleInput">
-                      <label for="sourceInput">Source/Artist:</label>
-                      <input type="text" id="sourceInput">
-                      <label for="artistInput">Artist (if different):</label>
-                      <input type="text" id="artistInput">
-                  </div>
+        <!-- Sidebar for Editing -->
+        <div class="sidebar">
+            <!-- Scene Controls -->
+            <div class="scene-controls">
+                <h4>Scene Information</h4>
+                <label for="sceneDescription">Scene Description:</label>
+                <textarea id="sceneDescription" rows="3"></textarea> <!-- Increased rows -->
+                <label for="frameTheme">Frame Theme:</label>
+                <input type="text" id="frameTheme">
+                <label for="backgroundTheme">Background Theme:</label>
+                <input type="text" id="backgroundTheme">
+                <label for="isMatch">Themes Match Scene:</label>
+                <select id="isMatch">
+                    <option value="true">Yes</option>
+                    <option value="false">No</option>
+                </select>
+                <label for="styleInput">Art Style:</label>
+                <input type="text" id="styleInput">
+                <label for="sourceInput">Source/Artist:</label>
+                <input type="text" id="sourceInput">
+                <label for="artistInput">Artist (if different):</label>
+                <input type="text" id="artistInput">
+            </div>
 
-                  <!-- Annotation Controls -->
-                  <div class="edit-controls">
-                      <h4>Annotation Details</h4>
-                      <div id="captions"></div>
-                      <label for="labelInput">Label:</label>
-                      <input type="text" id="labelInput">
-                      <label for="objectDescription">Object Description:</label>
-                      <textarea id="objectDescription" rows="2"></textarea>
-                      <label for="objectAttributes">Attributes (comma-separated):</label>
-                      <input type="text" id="objectAttributes">
-                      <button id="updateAnnotationButton">Update Annotation</button>
-                      <button id="deleteButton">Delete Annotation</button>
-                      <label for="colorPicker">Box Color:</label>
-                      <input type="color" id="colorPicker" value="#FF0000">
-                  </div>
-              </div>
-          </div>
+            <!-- Annotation Controls -->
+            <div class="edit-controls">
+                <h4>Annotation Details</h4>
+                <div id="captions"></div>
+                <label for="labelInput">Label:</label>
+                <input type="text" id="labelInput">
+                <label for="objectDescription">Object Description:</label>
+                <textarea id="objectDescription" rows="2"></textarea>
+                <label for="objectAttributes">Attributes (comma-separated):</label>
+                <input type="text" id="objectAttributes">
+                <button id="updateAnnotationButton">Update Annotation</button>
+                <button id="deleteButton">Delete Annotation</button>
+                <!-- Color picker is now in the Tools menu -->
+            </div>
+        </div>
+    </div>
 
-          <script src="script.js"></script>
-      </body>
-      </html>
+    <script src="script.js"></script>
+</body>
+</html>
