@@ -89,7 +89,7 @@ def load_model():
         TORCH_DTYPE = torch.float32
         logger.info("Using CPU (float32).")
 
-    model_id = "thwri/CogFlorence-2.1-Large"
+    model_id = "thwri/CogFlorence-2.2-Large"
     logger.info("Loading model %s ...", model_id)
 
     try:
@@ -184,7 +184,7 @@ async def startup_event():
 
 @app.get("/")
 def read_root():
-    return {"status": "CogFlorence-2 API is running"}
+    return {"status": "CogFlorence-2.2 API is running"}
 
 @app.post("/detect-objects", response_model=ObjectDetectionResponse)
 async def detect_objects(request: ObjectDetectionRequest):
