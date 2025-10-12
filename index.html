@@ -1,14 +1,14 @@
-<!-- Version 5.3 (UI & API Integration) -->
+<!-- Version 6.0 (Florence-2 Training Format) -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Image Annotation Tool</title>
+    <title>Image Annotation Tool - Florence-2 Format</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <h1>Image Annotation Tool</h1>
+    <h1>Image Annotation Tool - Florence-2 Training Format</h1>
 
     <!-- Classic Dropdown Menu Bar -->
     <div class="menu-bar">
@@ -29,9 +29,9 @@
             <button class="dropbtn">Tools</button>
             <div class="dropdown-content">
                 <a href="#" id="detectObjects">Detect Objects</a>
+                <a href="#" id="autoGenerate">Auto-Generate Captions</a>
                 <a href="#" id="importJson">Import Annotation JSON</a>
                 <hr>
-                <!-- ** Color Picker Moved Here ** -->
                 <div class="menu-item-static">
                     <span>Box Color:</span>
                     <input type="color" id="colorPicker" value="#FF0000">
@@ -50,13 +50,12 @@
         <div id="dirStatus" class="status-box">No directory selected.</div>
     </div>
 
-    <!-- Hidden file inputs, triggered by menu items -->
+    <!-- Hidden file inputs -->
     <input type="file" id="imageLoader" accept="image/*" hidden>
     <input type="file" id="jsonLoader" accept=".json" hidden>
 
-
     <div class="main-container">
-        <!-- Image Viewer and Navigation -->
+        <!-- Image Viewer -->
         <div class="image-viewer">
             <div class="canvas-container">
                 <canvas id="canvas"></canvas>
@@ -68,43 +67,54 @@
             </div>
         </div>
 
-        <!-- Sidebar for Editing -->
+        <!-- Sidebar -->
         <div class="sidebar">
             <!-- Scene Controls -->
             <div class="scene-controls">
-                <h4>Scene Information</h4>
-                <label for="sceneDescription">Scene Description:</label>
-                <textarea id="sceneDescription" rows="3"></textarea> <!-- Increased rows -->
+                <h4>Scene Information (Florence-2 Format)</h4>
+                <label for="sceneDescription">Scene Description (&lt;CAPTION&gt;):</label>
+                <textarea id="sceneDescription" rows="3" placeholder="Basic scene description - auto-filled by Detect Objects"></textarea>
+                
                 <label for="frameTheme">Frame Theme:</label>
-                <input type="text" id="frameTheme">
+                <input type="text" id="frameTheme" placeholder="e.g., rainforest, gothic, modern">
+                
                 <label for="backgroundTheme">Background Theme:</label>
-                <input type="text" id="backgroundTheme">
+                <input type="text" id="backgroundTheme" placeholder="e.g., forest, city, ocean">
+                
                 <label for="isMatch">Themes Match Scene:</label>
                 <select id="isMatch">
-                    <option value="true">Yes</option>
-                    <option value="false">No</option>
+                    <option value="true">Yes (Match)</option>
+                    <option value="false">No (Contrast)</option>
                 </select>
+                
+                <label for="phraseGrounding">Phrase Grounding Caption (&lt;CAPTION_TO_PHRASE_GROUNDING&gt;):</label>
+                <textarea id="phraseGrounding" rows="4" placeholder="Describe artistic relationships between frame, background, and elements. Click 'Auto-Generate Captions' to populate."></textarea>
+                
                 <label for="styleInput">Art Style:</label>
-                <input type="text" id="styleInput">
-                <label for="sourceInput">Source/Artist:</label>
-                <input type="text" id="sourceInput">
-                <label for="artistInput">Artist (if different):</label>
-                <input type="text" id="artistInput">
+                <input type="text" id="styleInput" placeholder="e.g., anime, realistic, watercolor">
+                
+                <label for="sourceInput">Source/Series:</label>
+                <input type="text" id="sourceInput" placeholder="e.g., Fate/Grand Order">
+                
+                <label for="artistInput">Artist:</label>
+                <input type="text" id="artistInput" placeholder="e.g., official art">
             </div>
 
             <!-- Annotation Controls -->
             <div class="edit-controls">
-                <h4>Annotation Details</h4>
+                <h4>Annotation Details (&lt;DENSE_REGION_CAPTION&gt;)</h4>
                 <div id="captions"></div>
-                <label for="labelInput">Label:</label>
-                <input type="text" id="labelInput">
-                <label for="objectDescription">Object Description:</label>
-                <textarea id="objectDescription" rows="2"></textarea>
+                <label for="labelInput">Label (Short):</label>
+                <input type="text" id="labelInput" placeholder="e.g., woman, frame, spear">
+                
+                <label for="objectDescription">Description (Detailed):</label>
+                <textarea id="objectDescription" rows="3" placeholder="Rich description for dense region caption task"></textarea>
+                
                 <label for="objectAttributes">Attributes (comma-separated):</label>
-                <input type="text" id="objectAttributes">
+                <input type="text" id="objectAttributes" placeholder="e.g., purple, gold, ornate">
+                
                 <button id="updateAnnotationButton">Update Annotation</button>
                 <button id="deleteButton">Delete Annotation</button>
-                <!-- Color picker is now in the Tools menu -->
             </div>
         </div>
     </div>

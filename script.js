@@ -1,4 +1,4 @@
-/* Version 5.3 (UI & API Integration) */
+/* Version 6.0 (Florence-2 Training Format) */
 
 // -- DOM Elements --
 // File Inputs
@@ -17,6 +17,7 @@ const saveAnnotationsLink = document.getElementById('saveAnnotations');
 const detectObjectsLink = document.getElementById('detectObjects');
 const importJsonLink = document.getElementById('importJson');
 const clearAllCacheLink = document.getElementById('clearAllCache');
+const autoGenerateLink = document.getElementById('autoGenerate');
 
 // Status & Navigation
 const dirStatus = document.getElementById('dirStatus');
@@ -32,7 +33,8 @@ const isMatchSelect = document.getElementById('isMatch');
 const styleInput = document.getElementById('styleInput');
 const sourceInput = document.getElementById('sourceInput');
 const artistInput = document.getElementById('artistInput');
-const sceneInputs = [sceneDescriptionInput, frameThemeInput, backgroundThemeInput, isMatchSelect, styleInput, sourceInput, artistInput];
+const phraseGroundingInput = document.getElementById('phraseGrounding');
+const sceneInputs = [sceneDescriptionInput, frameThemeInput, backgroundThemeInput, isMatchSelect, styleInput, sourceInput, artistInput, phraseGroundingInput];
 
 // Annotation list and object-level inputs
 const captionsDiv = document.getElementById('captions');
@@ -70,6 +72,7 @@ document.addEventListener('DOMContentLoaded', () => {
     detectObjectsLink.addEventListener('click', (e) => { e.preventDefault(); detectObjects(); });
     importJsonLink.addEventListener('click', (e) => { e.preventDefault(); jsonLoader.click(); });
     clearAllCacheLink.addEventListener('click', (e) => { e.preventDefault(); clearAllCache(); });
+    autoGenerateLink.addEventListener('click', (e) => { e.preventDefault(); autoGenerateFields(); });
     
     // Listen for file selections
     imageLoader.addEventListener('change', handleSingleImageLoad);
@@ -292,6 +295,7 @@ function saveStateToCache() {
         style: styleInput.value,
         source: sourceInput.value,
         artist: artistInput.value,
+        phraseGrounding: phraseGroundingInput.value,
         selectedAnnotation
     };
     try {
@@ -320,6 +324,7 @@ function loadState(state) {
     styleInput.value = state.style || '';
     sourceInput.value = state.source || '';
     artistInput.value = state.artist || '';
+    phraseGroundingInput.value = state.phraseGrounding || '';
     selectedAnnotation = (state.selectedAnnotation !== undefined && state.annotations && state.annotations.length > state.selectedAnnotation) ? state.selectedAnnotation : null;
     updateEditFields(selectedAnnotation);
 }
@@ -335,7 +340,7 @@ async function saveAnnotation() {
         const imageFilename = `${baseFilename}.jpg`;
         const jsonFilename = `${baseFilename}.json`;
         const categoryFilename = 'category_map.json';
-        const finalJsonData = createFinalJson(baseFilename, imageFilename);
+        const finalJsonData = createFlorenceTrainingJson(baseFilename, imageFilename);
         const imageBlob = await getCanvasBlob('image/jpeg', 0.9);
         await saveFileToDirectory(jsonFilename, new Blob([JSON.stringify(finalJsonData, null, 2)], { type: 'application/json' }));
         await saveFileToDirectory(imageFilename, imageBlob);
@@ -365,8 +370,66 @@ async function autoLoadAnnotationForCurrentImage() {
 }
 
 function loadAnnotationData(data) {
+    // Handle both old format and Florence-2 format
+    if (data['<OD>']) {
+        // Florence-2 format
+        loadFromFlorenceFormat(data);
+    } else if (data.objects) {
+        // Old format
+        loadFromOldFormat(data);
+    }
+}
+
+function loadFromFlorenceFormat(data) {
+    // Extract annotations from <DENSE_REGION_CAPTION> (most descriptive)
+    if (data['<DENSE_REGION_CAPTION>']) {
+        const dense = data['<DENSE_REGION_CAPTION>'];
+        annotations = dense.bboxes.map((bbox, i) => ({
+            label: dense.labels[i].split(' ').slice(0, 3).join(' ') || 'object', // First few words as label
+            box: bbox,
+            description: dense.labels[i] || '',
+            attributes: []
+        }));
+    } else if (data['<OD>']) {
+        // Fallback to basic OD
+        const od = data['<OD>'];
+        annotations = od.bboxes.map((bbox, i) => ({
+            label: od.labels[i] || 'object',
+            box: bbox,
+            description: '',
+            attributes: []
+        }));
+    }
+    
+    // Load scene info from caption
+    sceneDescriptionInput.value = data['<MORE_DETAILED_CAPTION>'] || data['<DETAILED_CAPTION>'] || data['<CAPTION>'] || '';
+    
+    // Load phrase grounding
+    if (data['<CAPTION_TO_PHRASE_GROUNDING>']) {
+        phraseGroundingInput.value = data['<CAPTION_TO_PHRASE_GROUNDING>'].caption || '';
+    }
+    
+    // Load metadata if present
+    if (data.metadata) {
+        styleInput.value = data.metadata.style || '';
+        sourceInput.value = data.metadata.source || '';
+        artistInput.value = data.metadata.artist || '';
+    }
+    
+    updateEditFields(null);
+}
+
+function loadFromOldFormat(data) {
     loadState(data);
     if (data.objects) {
+        // Convert old bbox format [x, y, w, h] to [x1, y1, x2, y2]
+        annotations = data.objects.map(obj => ({
+            label: obj.label,
+            box: [obj.bbox[0], obj.bbox[1], obj.bbox[0] + obj.bbox[2], obj.bbox[1] + obj.bbox[3]],
+            description: obj.description || '',
+            attributes: obj.attributes || []
+        }));
+        
         data.objects.forEach(obj => {
             if (obj.label && obj.category_id && !categoryMap[obj.label]) {
                 categoryMap[obj.label] = obj.category_id;
@@ -396,7 +459,7 @@ async function detectObjects() {
         
         const result = await response.json();
 
-        // ** NEW: Auto-fill scene description **
+        // Auto-fill scene description
         sceneDescriptionInput.value = result.caption || '';
 
         result.objects.forEach(det => {
@@ -411,6 +474,41 @@ async function detectObjects() {
     } finally {
         detectObjectsLink.textContent = "Detect Objects";
     }
+}
+
+function autoGenerateFields() {
+    if (!currentImage) {
+        alert('Please load an image first.');
+        return;
+    }
+    
+    // Auto-generate phrase grounding caption based on current fields
+    const frameTheme = frameThemeInput.value.trim();
+    const bgTheme = backgroundThemeInput.value.trim();
+    const isMatch = isMatchSelect.value === 'true';
+    const sceneDesc = sceneDescriptionInput.value.trim();
+    
+    if (frameTheme && bgTheme && annotations.length > 0) {
+        const matchText = isMatch ? 'matches' : 'contrasts with';
+        
+        // Build phrase grounding caption with key visual elements
+        const visualElements = annotations
+            .filter(a => a.label && a.label !== 'new annotation')
+            .slice(0, 5) // Top 5 elements
+            .map(a => a.label)
+            .join(', ');
+        
+        const generated = `The ${frameTheme} frame theme ${matchText} the ${bgTheme} background. ` +
+                         `${sceneDesc}. Key elements include: ${visualElements}.`;
+        
+        phraseGroundingInput.value = generated;
+        
+        alert('Phrase grounding caption auto-generated! Review and edit as needed.');
+    } else {
+        alert('Please fill in frame theme, background theme, and add at least one annotation first.');
+    }
+    
+    redraw();
 }
 
 function resetStateForNewImage() {
@@ -481,13 +579,100 @@ function updateCategoryMapFromAnnotations() {
     });
 }
 
-function createFinalJson(imageId, imagePath) {
-    const objects = annotations.map((ann, index) => {
-        const label = ann.label.trim();
-        if (!label) return null;
-        return { id: index + 1, label: label, category_id: categoryMap[label], bbox: [ann.box[0], ann.box[1], ann.box[2] - ann.box[0], ann.box[3] - ann.box[1]], description: ann.description, attributes: ann.attributes };
-    }).filter(Boolean);
-    return { image_id: imageId, image_path: `data/images/${imagePath}`, scene_description: sceneDescriptionInput.value, theme_match: isMatchSelect.value === 'true', objects: objects, metadata: { style: styleInput.value, source: sourceInput.value, artist: artistInput.value, resolution: `${currentImage.width}x${currentImage.height}` } };
+function createFlorenceTrainingJson(imageId, imagePath) {
+    // Generate <MORE_DETAILED_CAPTION>
+    const frameTheme = frameThemeInput.value.trim();
+    const bgTheme = backgroundThemeInput.value.trim();
+    const style = styleInput.value.trim();
+    const source = sourceInput.value.trim();
+    const sceneDesc = sceneDescriptionInput.value.trim();
+    
+    let detailedCaption = sceneDesc;
+    if (frameTheme && bgTheme) {
+        const matchText = isMatchSelect.value === 'true' ? 'that complements' : 'that contrasts with';
+        detailedCaption = `${sceneDesc} The image features a ${frameTheme} frame ${matchText} the ${bgTheme} background`;
+        if (style) detailedCaption += ` in ${style} style`;
+        if (source) detailedCaption += ` from ${source}`;
+        detailedCaption += '.';
+    }
+    
+    // Generate <OD> - Simple object detection
+    const odBboxes = annotations.map(a => a.box);
+    const odLabels = annotations.map(a => a.label.trim() || 'object');
+    
+    // Generate <DENSE_REGION_CAPTION> - Rich descriptions
+    const denseBboxes = [...odBboxes];
+    const denseLabels = annotations.map(a => {
+        let desc = a.description.trim();
+        if (!desc && a.label) desc = a.label;
+        if (a.attributes && a.attributes.length > 0) {
+            desc += ` (${a.attributes.join(', ')})`;
+        }
+        return desc || a.label || 'object';
+    });
+    
+    // Generate <CAPTION_TO_PHRASE_GROUNDING>
+    let phraseCaption = phraseGroundingInput.value.trim();
+    let phraseBboxes = [];
+    let phraseLabels = [];
+    
+    if (phraseCaption) {
+        // Use existing annotations as grounded phrases
+        annotations.forEach(a => {
+            if (a.label && a.label !== 'new annotation') {
+                phraseBboxes.push(a.box);
+                phraseLabels.push(a.label.trim());
+            }
+        });
+    } else {
+        // Auto-generate if empty
+        const matchText = isMatchSelect.value === 'true' ? 'matches' : 'contrasts with';
+        phraseCaption = `The ${frameTheme || 'frame'} theme ${matchText} the ${bgTheme || 'background'}.`;
+        
+        // Add key objects to grounding
+        annotations.slice(0, 5).forEach(a => {
+            if (a.label && a.label !== 'new annotation') {
+                phraseBboxes.push(a.box);
+                phraseLabels.push(a.label.trim());
+            }
+        });
+    }
+    
+    return {
+        image_id: imageId,
+        image_path: `data/images/${imagePath}`,
+        
+        // Florence-2 task formats
+        "<CAPTION>": sceneDesc,
+        "<MORE_DETAILED_CAPTION>": detailedCaption,
+        
+        "<OD>": {
+            bboxes: odBboxes,
+            labels: odLabels
+        },
+        
+        "<DENSE_REGION_CAPTION>": {
+            bboxes: denseBboxes,
+            labels: denseLabels
+        },
+        
+        "<CAPTION_TO_PHRASE_GROUNDING>": {
+            caption: phraseCaption,
+            bboxes: phraseBboxes,
+            labels: phraseLabels
+        },
+        
+        // Metadata for reference
+        metadata: {
+            style: style,
+            source: source,
+            artist: artistInput.value.trim(),
+            frame_theme: frameTheme,
+            background_theme: bgTheme,
+            theme_match: isMatchSelect.value === 'true',
+            resolution: `${currentImage.width}x${currentImage.height}`
+        }
+    };
 }
 
 function updateEditFields(index) {
