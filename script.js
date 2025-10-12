@@ -482,30 +482,61 @@ function autoGenerateFields() {
         return;
     }
     
-    // Auto-generate phrase grounding caption based on current fields
+    // Auto-generate artistic analysis caption based on current fields
     const frameTheme = frameThemeInput.value.trim();
     const bgTheme = backgroundThemeInput.value.trim();
     const isMatch = isMatchSelect.value === 'true';
     const sceneDesc = sceneDescriptionInput.value.trim();
+    const style = styleInput.value.trim();
+    const source = sourceInput.value.trim();
     
-    if (frameTheme && bgTheme && annotations.length > 0) {
-        const matchText = isMatch ? 'matches' : 'contrasts with';
+    if (frameTheme && bgTheme && sceneDesc) {
+        const matchText = isMatch ? 'beautifully complements' : 'contrasts with';
+        const coherenceText = isMatch ? 'creating strong thematic coherence' : 'creating visual tension';
         
-        // Build phrase grounding caption with key visual elements
-        const visualElements = annotations
-            .filter(a => a.label && a.label !== 'new annotation')
-            .slice(0, 5) // Top 5 elements
-            .map(a => a.label)
-            .join(', ');
+        // Build rich artistic analysis
+        let generated = sceneDesc;
         
-        const generated = `The ${frameTheme} frame theme ${matchText} the ${bgTheme} background. ` +
-                         `${sceneDesc}. Key elements include: ${visualElements}.`;
+        // Add frame analysis
+        if (annotations.some(a => a.label.toLowerCase().includes('frame'))) {
+            const frameAnn = annotations.find(a => a.label.toLowerCase().includes('frame'));
+            const frameDesc = frameAnn?.description || `${frameTheme} frame`;
+            generated += ` The ${frameDesc} ${matchText} the ${bgTheme} background, ${coherenceText}.`;
+        } else {
+            generated += ` The ${frameTheme} frame ${matchText} the ${bgTheme} background, ${coherenceText}.`;
+        }
+        
+        // Add design harmony details if available
+        const decorativeElements = annotations.filter(a => 
+            a.attributes && a.attributes.length > 0 && 
+            (a.label.toLowerCase().includes('pauldron') || 
+             a.label.toLowerCase().includes('armor') ||
+             a.label.toLowerCase().includes('accent'))
+        );
+        
+        if (decorativeElements.length > 0) {
+            const firstElem = decorativeElements[0];
+            const sharedAttrs = firstElem.attributes.find(attr => 
+                frameTheme.toLowerCase().includes(attr.toLowerCase())
+            );
+            if (sharedAttrs) {
+                generated += ` The ${firstElem.label} echo the decorative elements of the frame, demonstrating excellent design harmony.`;
+            }
+        }
+        
+        // Add style and source
+        if (style || source) {
+            generated += ` This is`;
+            if (style) generated += ` ${style}`;
+            if (source) generated += ` from ${source}`;
+            generated += `.`;
+        }
         
         phraseGroundingInput.value = generated;
         
-        alert('Phrase grounding caption auto-generated! Review and edit as needed.');
+        alert('Artistic analysis caption auto-generated! Review and edit as needed.');
     } else {
-        alert('Please fill in frame theme, background theme, and add at least one annotation first.');
+        alert('Please fill in scene description, frame theme, and background theme first.');
     }
     
     redraw();

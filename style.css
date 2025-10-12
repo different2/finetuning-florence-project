@@ -234,3 +234,9 @@ textarea { resize: vertical; min-height: 60px; }
 .edit-controls h4 {
     color: #0066cc;
 }
+
+/* Emphasize the main artistic analysis field */
+#phraseGrounding {
+    border: 2px solid #0066cc;
+    background-color: #f0f8ff;
+}
