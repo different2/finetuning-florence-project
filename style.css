@@ -229,14 +229,46 @@ textarea { resize: vertical; min-height: 60px; }
 #updateAnnotationButton:hover { background-color: #b8daff; }
 
 /* Special styling for Florence-2 task labels */
-.scene-controls label[for="sceneDescription"],
-.scene-controls label[for="phraseGrounding"],
+.scene-controls label[for="phraseGrounding"] {
+    color: #0066cc;
+    font-weight: bold;
+}
+
 .edit-controls h4 {
     color: #0066cc;
 }
 
-/* Emphasize the main artistic analysis field */
+/* Emphasize the main phrase grounding field */
 #phraseGrounding {
     border: 2px solid #0066cc;
     background-color: #f0f8ff;
+    font-size: 0.95em;
+}
+
+/* Read-only styling for generated caption */
+#phraseGrounding[readonly] {
+    background-color: #f5f5f5;
+    cursor: not-allowed;
+    border: 2px solid #999;
+}
+
+/* Highlight user notes field */
+#userNotes {
+    border: 2px solid #28a745;
+    background-color: #f0fff4;
+}
+
+.scene-controls label[for="userNotes"] {
+    color: #28a745;
+    font-weight: bold;
+}
+
+/* Refresh Analysis button styling */
+#refreshAnalysis {
+    transition: all 0.3s ease;
+}
+
+#refreshAnalysis:hover {
+    background-color: #0052a3;
+    transform: scale(1.02);
 }

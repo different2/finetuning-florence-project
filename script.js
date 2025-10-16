@@ -1,4 +1,41 @@
-/* Version 6.0 (Florence-2 Training Format) */
+function loadFromFlorenceFormat(data) {
+    // Extract annotations from <DENSE_REGION_CAPTION> (most descriptive)
+    if (data['<DENSE_REGION_CAPTION>']) {
+        const dense = data['<DENSE_REGION_CAPTION>'];
+        annotations = dense.bboxes.map((bbox, i) => ({
+            label: dense.labels[i].split(' ').slice(0, 3).join(' ') || 'object',
+            box: bbox,
+            description: dense.labels[i] || '',
+            attributes: []
+        }));
+    } else if (data['<OD>']) {
+        const od = data['<OD>'];
+        annotations = od.bboxes.map((bbox, i) => ({
+            label: od.labels[i] || 'object',
+            box: bbox,
+            description: '',
+            attributes: []
+        }));
+    }
+    
+    // Load phrase grounding caption
+    if (data['<CAPTION_TO_PHRASE_GROUNDING>']) {
+        phraseGroundingInput.value = data['<CAPTION_TO_PHRASE_GROUNDING>'].caption || '';
+    }
+    
+    // Load metadata if present
+    if (data.metadata) {
+        styleInput.value = data.metadata.style || '';
+        sourceInput.value = data.metadata.source || '';
+        artistInput.value = data.metadata.artist || '';
+        // Don't override persistent user notes unless they were saved with this image
+        if (data.metadata.user_notes && !userNotesInput.value) {
+            userNotesInput.value = data.metadata.user_notes;
+        }
+    }
+    
+    updateEditFields(null);
+}/* Version 6.0 (Florence-2 Training Format) */
 
 // -- DOM Elements --
 // File Inputs
@@ -17,7 +54,6 @@ const saveAnnotationsLink = document.getElementById('saveAnnotations');
 const detectObjectsLink = document.getElementById('detectObjects');
 const importJsonLink = document.getElementById('importJson');
 const clearAllCacheLink = document.getElementById('clearAllCache');
-const autoGenerateLink = document.getElementById('autoGenerate');
 
 // Status & Navigation
 const dirStatus = document.getElementById('dirStatus');
@@ -26,15 +62,13 @@ const nextImageButton = document.getElementById('nextImage');
 const imageCounter = document.getElementById('image-counter');
 
 // Scene-level inputs
-const sceneDescriptionInput = document.getElementById('sceneDescription');
-const frameThemeInput = document.getElementById('frameTheme');
-const backgroundThemeInput = document.getElementById('backgroundTheme');
-const isMatchSelect = document.getElementById('isMatch');
+const userNotesInput = document.getElementById('userNotes');
+const phraseGroundingInput = document.getElementById('phraseGrounding');
 const styleInput = document.getElementById('styleInput');
 const sourceInput = document.getElementById('sourceInput');
 const artistInput = document.getElementById('artistInput');
-const phraseGroundingInput = document.getElementById('phraseGrounding');
-const sceneInputs = [sceneDescriptionInput, frameThemeInput, backgroundThemeInput, isMatchSelect, styleInput, sourceInput, artistInput, phraseGroundingInput];
+const refreshAnalysisButton = document.getElementById('refreshAnalysis');
+const sceneInputs = [userNotesInput, phraseGroundingInput, styleInput, sourceInput, artistInput];
 
 // Annotation list and object-level inputs
 const captionsDiv = document.getElementById('captions');
@@ -72,12 +106,15 @@ document.addEventListener('DOMContentLoaded', () => {
     detectObjectsLink.addEventListener('click', (e) => { e.preventDefault(); detectObjects(); });
     importJsonLink.addEventListener('click', (e) => { e.preventDefault(); jsonLoader.click(); });
     clearAllCacheLink.addEventListener('click', (e) => { e.preventDefault(); clearAllCache(); });
-    autoGenerateLink.addEventListener('click', (e) => { e.preventDefault(); autoGenerateFields(); });
+    refreshAnalysisButton.addEventListener('click', (e) => { e.preventDefault(); refreshAnalysis(); });
     
     // Listen for file selections
     imageLoader.addEventListener('change', handleSingleImageLoad);
     jsonLoader.addEventListener('change', handleJsonLoad);
 
+    // Load persistent user notes from localStorage
+    loadPersistentUserNotes();
+    
     updateNavigationUI();
 });
 
@@ -288,18 +325,17 @@ function saveStateToCache() {
     if (!currentImage || !stateKey) return;
     const state = {
         annotations,
-        sceneDescription: sceneDescriptionInput.value,
-        frameTheme: frameThemeInput.value,
-        backgroundTheme: backgroundThemeInput.value,
-        isMatch: isMatchSelect.value,
+        userNotes: userNotesInput.value,
+        phraseGrounding: phraseGroundingInput.value,
         style: styleInput.value,
         source: sourceInput.value,
         artist: artistInput.value,
-        phraseGrounding: phraseGroundingInput.value,
         selectedAnnotation
     };
     try {
         localStorage.setItem(stateKey, JSON.stringify(state));
+        // Also save user notes persistently (doesn't clear between images)
+        localStorage.setItem('annotationTool_persistentUserNotes', userNotesInput.value);
     } catch (e) { console.error("Error saving state to cache:", e); }
 }
 
@@ -317,16 +353,19 @@ function loadStateFromCache() {
 
 function loadState(state) {
     annotations = state.annotations || [];
-    sceneDescriptionInput.value = state.sceneDescription || '';
-    frameThemeInput.value = state.frameTheme || '';
-    backgroundThemeInput.value = state.backgroundTheme || '';
-    isMatchSelect.value = state.isMatch || 'true';
+    userNotesInput.value = state.userNotes || loadPersistentUserNotes();
+    phraseGroundingInput.value = state.phraseGrounding || '';
     styleInput.value = state.style || '';
     sourceInput.value = state.source || '';
     artistInput.value = state.artist || '';
-    phraseGroundingInput.value = state.phraseGrounding || '';
     selectedAnnotation = (state.selectedAnnotation !== undefined && state.annotations && state.annotations.length > state.selectedAnnotation) ? state.selectedAnnotation : null;
     updateEditFields(selectedAnnotation);
+}
+
+function loadPersistentUserNotes() {
+    const notes = localStorage.getItem('annotationTool_persistentUserNotes') || '';
+    if (userNotesInput) userNotesInput.value = notes;
+    return notes;
 }
 
 async function saveAnnotation() {
@@ -401,19 +440,20 @@ function loadFromFlorenceFormat(data) {
         }));
     }
     
-    // Load scene info from caption
-    sceneDescriptionInput.value = data['<MORE_DETAILED_CAPTION>'] || data['<DETAILED_CAPTION>'] || data['<CAPTION>'] || '';
+    // Load scene info
+    sceneDescriptionInput.value = data['<CAPTION>'] || '';
     
-    // Load phrase grounding
-    if (data['<CAPTION_TO_PHRASE_GROUNDING>']) {
-        phraseGroundingInput.value = data['<CAPTION_TO_PHRASE_GROUNDING>'].caption || '';
-    }
+    // Load artistic analysis from MORE_DETAILED_CAPTION
+    phraseGroundingInput.value = data['<MORE_DETAILED_CAPTION>'] || '';
     
     // Load metadata if present
     if (data.metadata) {
         styleInput.value = data.metadata.style || '';
         sourceInput.value = data.metadata.source || '';
         artistInput.value = data.metadata.artist || '';
+        frameThemeInput.value = data.metadata.frame_theme || '';
+        backgroundThemeInput.value = data.metadata.background_theme || '';
+        isMatchSelect.value = data.metadata.theme_match ? 'true' : 'false';
     }
     
     updateEditFields(null);
@@ -459,14 +499,15 @@ async function detectObjects() {
         
         const result = await response.json();
 
-        // Auto-fill scene description
-        sceneDescriptionInput.value = result.caption || '';
+        // Store initial caption for reference, but don't display it
+        // (User will see phrase grounding after clicking Refresh Analysis)
 
         result.objects.forEach(det => {
             annotations.push({ label: det.label, box: det.box, description: '', attributes: [] });
         });
 
         redraw();
+        alert('Objects detected! Now refine annotations and click "Refresh Phrase Grounding" to generate the caption.');
 
     } catch (error) {
         console.error("Object detection failed:", error);
@@ -476,70 +517,73 @@ async function detectObjects() {
     }
 }
 
-function autoGenerateFields() {
+function refreshAnalysis() {
     if (!currentImage) {
         alert('Please load an image first.');
         return;
     }
     
-    // Auto-generate artistic analysis caption based on current fields
-    const frameTheme = frameThemeInput.value.trim();
-    const bgTheme = backgroundThemeInput.value.trim();
-    const isMatch = isMatchSelect.value === 'true';
-    const sceneDesc = sceneDescriptionInput.value.trim();
-    const style = styleInput.value.trim();
-    const source = sourceInput.value.trim();
-    
-    if (frameTheme && bgTheme && sceneDesc) {
-        const matchText = isMatch ? 'beautifully complements' : 'contrasts with';
-        const coherenceText = isMatch ? 'creating strong thematic coherence' : 'creating visual tension';
-        
-        // Build rich artistic analysis
-        let generated = sceneDesc;
-        
-        // Add frame analysis
-        if (annotations.some(a => a.label.toLowerCase().includes('frame'))) {
-            const frameAnn = annotations.find(a => a.label.toLowerCase().includes('frame'));
-            const frameDesc = frameAnn?.description || `${frameTheme} frame`;
-            generated += ` The ${frameDesc} ${matchText} the ${bgTheme} background, ${coherenceText}.`;
-        } else {
-            generated += ` The ${frameTheme} frame ${matchText} the ${bgTheme} background, ${coherenceText}.`;
-        }
-        
-        // Add design harmony details if available
-        const decorativeElements = annotations.filter(a => 
-            a.attributes && a.attributes.length > 0 && 
-            (a.label.toLowerCase().includes('pauldron') || 
-             a.label.toLowerCase().includes('armor') ||
-             a.label.toLowerCase().includes('accent'))
-        );
-        
-        if (decorativeElements.length > 0) {
-            const firstElem = decorativeElements[0];
-            const sharedAttrs = firstElem.attributes.find(attr => 
-                frameTheme.toLowerCase().includes(attr.toLowerCase())
-            );
-            if (sharedAttrs) {
-                generated += ` The ${firstElem.label} echo the decorative elements of the frame, demonstrating excellent design harmony.`;
-            }
-        }
-        
-        // Add style and source
-        if (style || source) {
-            generated += ` This is`;
-            if (style) generated += ` ${style}`;
-            if (source) generated += ` from ${source}`;
-            generated += `.`;
-        }
-        
-        phraseGroundingInput.value = generated;
-        
-        alert('Artistic analysis caption auto-generated! Review and edit as needed.');
-    } else {
-        alert('Please fill in scene description, frame theme, and background theme first.');
+    if (annotations.length === 0) {
+        alert('Please add some annotations first (use Detect Objects or draw boxes manually).');
+        return;
     }
     
-    redraw();
+    refreshAnalysisButton.textContent = "🔄 Refreshing...";
+    refreshAnalysisButton.disabled = true;
+    
+    // Call the API endpoint
+    getCanvasBlob('image/png').then(imageBlob => {
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+            const imageB64 = reader.result.split(',')[1];
+            
+            try {
+                const response = await fetch('http://127.0.0.1:8000/refresh-analysis', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        image_b64: imageB64,
+                        annotations: annotations,
+                        user_notes: userNotesInput.value.trim(),
+                        style: styleInput.value.trim(),
+                        source: sourceInput.value.trim(),
+                        artist: artistInput.value.trim()
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Server responded with ${response.status}: ${await response.text()}`);
+                }
+                
+                const result = await response.json();
+                
+                // Update the phrase grounding text box with the caption
+                phraseGroundingInput.value = result.phrase_grounding_caption;
+                
+                redraw();
+                
+                alert('Phrase grounding refreshed! Florence-2 has regenerated the caption based on your annotations.');
+                
+            } catch (error) {
+                console.error("Refresh analysis failed:", error);
+                alert("Refresh analysis failed. Ensure the backend service is running and check console.");
+            } finally {
+                refreshAnalysisButton.textContent = "🔄 Refresh Phrase Grounding from Current Annotations";
+                refreshAnalysisButton.disabled = false;
+            }
+        };
+        reader.onerror = () => {
+            alert("Failed to read image data");
+            refreshAnalysisButton.textContent = "🔄 Refresh Phrase Grounding from Current Annotations";
+            refreshAnalysisButton.disabled = false;
+        };
+        reader.readAsDataURL(imageBlob);
+    }).catch(error => {
+        console.error("Failed to get canvas blob:", error);
+        alert("Failed to prepare image data");
+        refreshAnalysisButton.textContent = "🔄 Refresh Phrase Grounding from Current Annotations";
+        refreshAnalysisButton.disabled = false;
+    });
 }
 
 function resetStateForNewImage() {
@@ -547,10 +591,12 @@ function resetStateForNewImage() {
     selectedAnnotation = null;
     highlightedAnnotation = null;
     jsonLoader.value = '';
-    sceneInputs.forEach(input => {
-        if (input.tagName === 'SELECT') input.value = 'true';
-        else input.value = '';
-    });
+    // Clear image-specific fields but keep persistent user notes
+    phraseGroundingInput.value = '';
+    styleInput.value = '';
+    sourceInput.value = '';
+    artistInput.value = '';
+    // userNotesInput stays persistent!
     updateEditFields(null);
 }
 
@@ -611,21 +657,8 @@ function updateCategoryMapFromAnnotations() {
 }
 
 function createFlorenceTrainingJson(imageId, imagePath) {
-    // Generate <MORE_DETAILED_CAPTION>
-    const frameTheme = frameThemeInput.value.trim();
-    const bgTheme = backgroundThemeInput.value.trim();
-    const style = styleInput.value.trim();
-    const source = sourceInput.value.trim();
-    const sceneDesc = sceneDescriptionInput.value.trim();
-    
-    let detailedCaption = sceneDesc;
-    if (frameTheme && bgTheme) {
-        const matchText = isMatchSelect.value === 'true' ? 'that complements' : 'that contrasts with';
-        detailedCaption = `${sceneDesc} The image features a ${frameTheme} frame ${matchText} the ${bgTheme} background`;
-        if (style) detailedCaption += ` in ${style} style`;
-        if (source) detailedCaption += ` from ${source}`;
-        detailedCaption += '.';
-    }
+    // Main task: <CAPTION_TO_PHRASE_GROUNDING>
+    const phraseGroundingCaption = phraseGroundingInput.value.trim() || "Annotated scene";
     
     // Generate <OD> - Simple object detection
     const odBboxes = annotations.map(a => a.box);
@@ -642,40 +675,20 @@ function createFlorenceTrainingJson(imageId, imagePath) {
         return desc || a.label || 'object';
     });
     
-    // Generate <CAPTION_TO_PHRASE_GROUNDING>
-    let phraseCaption = phraseGroundingInput.value.trim();
-    let phraseBboxes = [];
-    let phraseLabels = [];
-    
-    if (phraseCaption) {
-        // Use existing annotations as grounded phrases
-        annotations.forEach(a => {
-            if (a.label && a.label !== 'new annotation') {
-                phraseBboxes.push(a.box);
-                phraseLabels.push(a.label.trim());
-            }
-        });
-    } else {
-        // Auto-generate if empty
-        const matchText = isMatchSelect.value === 'true' ? 'matches' : 'contrasts with';
-        phraseCaption = `The ${frameTheme || 'frame'} theme ${matchText} the ${bgTheme || 'background'}.`;
-        
-        // Add key objects to grounding
-        annotations.slice(0, 5).forEach(a => {
-            if (a.label && a.label !== 'new annotation') {
-                phraseBboxes.push(a.box);
-                phraseLabels.push(a.label.trim());
-            }
-        });
-    }
+    // Phrase grounding bboxes and labels
+    const phraseBboxes = [...odBboxes];
+    const phraseLabels = [...odLabels];
     
     return {
         image_id: imageId,
         image_path: `data/images/${imagePath}`,
         
         // Florence-2 task formats
-        "<CAPTION>": sceneDesc,
-        "<MORE_DETAILED_CAPTION>": detailedCaption,
+        "<CAPTION_TO_PHRASE_GROUNDING>": {
+            caption: phraseGroundingCaption,
+            bboxes: phraseBboxes,
+            labels: phraseLabels
+        },
         
         "<OD>": {
             bboxes: odBboxes,
@@ -687,20 +700,12 @@ function createFlorenceTrainingJson(imageId, imagePath) {
             labels: denseLabels
         },
         
-        "<CAPTION_TO_PHRASE_GROUNDING>": {
-            caption: phraseCaption,
-            bboxes: phraseBboxes,
-            labels: phraseLabels
-        },
-        
         // Metadata for reference
         metadata: {
-            style: style,
-            source: source,
+            style: styleInput.value.trim(),
+            source: sourceInput.value.trim(),
             artist: artistInput.value.trim(),
-            frame_theme: frameTheme,
-            background_theme: bgTheme,
-            theme_match: isMatchSelect.value === 'true',
+            user_notes: userNotesInput.value.trim(),
             resolution: `${currentImage.width}x${currentImage.height}`
         }
     };
